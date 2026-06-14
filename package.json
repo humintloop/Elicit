@@ -1,7 +1,7 @@
 {
-  "name": "ai-red-team-lab",
-  "version": "0.1.0",
-  "description": "Local LLM adversarial testing lab — prompt injection, jailbreaking, and constraint bypass research",
+  "name": "llm-red-team-lab",
+  "version": "0.2.0",
+  "description": "Local-first LLM adversarial evaluation and AI assurance lab",
   "type": "module",
   "scripts": {
     "dev": "vite",
