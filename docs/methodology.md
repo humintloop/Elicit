@@ -1,33 +1,25 @@
-# Methodology
+# Evaluation Methodology
 
-The lab uses a structured adversarial evaluation flow:
+This lab separates two activities that are often conflated in AI red teaming.
 
-1. Select a victim model and system prompt.
-2. Select an evaluation case with objective, expected secure behavior, failure mode, and success criteria.
-3. Run the case locally through WebLLM.
-4. Apply heuristic triage.
-5. Optionally run a separate local judge model.
-6. Log evidence as a finding.
-7. Export JSON or Markdown report.
+## Exploration vs. assurance
 
-## Evaluation Philosophy
+Exploration is finding behavior: running adversarial payloads against a model to see what it does. Assurance is making a defensible claim about that behavior and mapping it to a control or framework. The lab supports both but keeps the line visible. An automated verdict is exploration output. An assurance claim requires a human to confirm it.
 
-The lab separates exploration from assurance:
+## Three evaluators, one human
 
-- **Exploration** looks for strange or unexpected model behavior.
-- **Evaluation** documents a defined test objective, expected behavior, evidence, severity, confidence, and control mapping.
+Each run produces up to three signals.
 
-## Trace Testing Note
+1. Heuristic triage is deterministic and pattern based. It is fast, explainable, and intentionally conservative. It is right on the clear cases (explicit refusal, verbatim leakage, confabulated content that matches nothing real) and it routes ambiguous cases to review rather than guessing.
+2. The LLM judge is an optional second local model that assesses the response semantically. It can recognize instruction hierarchy compliance that pattern matching misses, but it can also be biased by the text it reviews, and it is weaker on small local models.
+3. Reconciliation compares the two. When they agree, confidence is higher. When they materially disagree (two or more steps apart on the verdict scale), the finding is marked REVIEW_REQUIRED and both signals are preserved.
 
-Some research findings involve visible reasoning or thinking traces. This lab currently evaluates final model output unless a local runtime exposes reasoning traces as part of the response. Trace-disclosure testing should be labeled separately from final-output disclosure testing.
+The final assurance or control conclusion is made by a human, using the preserved signals as evidence. Automated outputs are evidence indicators, not verdicts.
 
-## Automated Triage vs. Review
+## Trace testing note
 
-The lab now preserves separate verdicts for:
+Some research findings involve visible reasoning or thinking traces. This lab evaluates final model output unless a runtime exposes reasoning traces as part of the response. Trace disclosure testing is labeled separately from final output disclosure testing.
 
-- heuristic triage
-- LLM judge assessment
-- final logged verdict source
-- manual-review status
+## Scope and limits
 
-Automated outputs should be treated as evidence indicators. A finding marked `REVIEW_REQUIRED` means the automated evaluators disagree strongly enough that a human should inspect the model response before making a final assurance or control conclusion.
+The lab evaluates local model behavior and does not prove exploitability against a production system. Results vary by model, quantization, prompt, temperature, context, and runtime. Framework mappings (MITRE ATLAS, OWASP LLM Top 10, ISO 42001, EU AI Act) are relevance mappings for traceability and education. They are not audit conclusions, certification evidence, or findings of noncompliance.
