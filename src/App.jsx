@@ -301,7 +301,6 @@ export default function App() {
     return true;
   });
 
-  const techniqueColor = (id) => TECHNIQUES[id]?.color || C.text2;
   const verdictColor = (v) => v === 'SUCCESS' ? C.green : v === 'PARTIAL' ? C.amber : v === 'FAILURE' || v === 'FAILED' ? C.red : v === 'REVIEW' ? C.blue : C.text2;
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -413,7 +412,7 @@ export default function App() {
                   onChange={e => { const p = PRESETS.find(x => x.id === e.target.value); if (p) setVictimPrompt(p.prompt); }}
                   style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text2, fontSize: 13, padding: '2px 6px', borderRadius: 2 }}
                 >
-                  <option value="">— preset —</option>
+                  <option value="">select preset</option>
                   {PRESETS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
@@ -435,16 +434,16 @@ export default function App() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 <button className="pill-btn" onClick={() => setTechFilter('ALL')} style={{
                   padding: '3px 8px', fontSize: 13, fontWeight: 700, letterSpacing: .5,
-                  background: techFilter === 'ALL' ? C.redBg : 'transparent',
-                  border: `1px solid ${techFilter === 'ALL' ? C.red : C.border}`,
-                  color: techFilter === 'ALL' ? C.red : C.text2, cursor: 'pointer', borderRadius: 2,
+                  background: techFilter === 'ALL' ? C.hover : 'transparent',
+                  border: `1px solid ${techFilter === 'ALL' ? C.text2 : C.border}`,
+                  color: techFilter === 'ALL' ? C.text1 : C.text2, cursor: 'pointer', borderRadius: 2,
                 }}>ALL</button>
                 {Object.values(TECHNIQUES).map(t => (
                   <button key={t.id} className="pill-btn" onClick={() => setTechFilter(t.id)} style={{
                     padding: '3px 8px', fontSize: 13, fontWeight: 700, letterSpacing: .5,
-                    background: techFilter === t.id ? `${t.color}15` : 'transparent',
-                    border: `1px solid ${techFilter === t.id ? t.color : C.border}`,
-                    color: techFilter === t.id ? t.color : C.text2, cursor: 'pointer', borderRadius: 2,
+                    background: techFilter === t.id ? C.hover : 'transparent',
+                    border: `1px solid ${techFilter === t.id ? C.text2 : C.border}`,
+                    color: techFilter === t.id ? C.text1 : C.text2, cursor: 'pointer', borderRadius: 2,
                   }}>{t.id}</button>
                 ))}
               </div>
@@ -477,20 +476,19 @@ export default function App() {
 
               {filteredPayloads.map(p => {
                 const active = !useCustom && selectedPayload?.id === p.id;
-                const tc = techniqueColor(p.technique);
                 return (
                   <div
                     key={p.id}
                     className="row"
                     onClick={() => { setSelectedPayload(p); setUseCustom(false); }}
                     style={{
-                      padding: '9px 14px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`,
+                      padding: '12px 14px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`,
                       background: active ? C.hover : 'transparent',
-                      borderLeft: active ? `2px solid ${C.red}` : '2px solid transparent',
+                      borderLeft: active ? `2px solid ${C.blue}` : '2px solid transparent',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontSize: 12, color: tc, background: `${tc}12`, padding: '1px 5px', borderRadius: 2, border: `1px solid ${tc}30` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 12, color: C.text2, background: C.hover, padding: '1px 5px', borderRadius: 2, border: `1px solid ${C.border}` }}>
                         {p.technique}
                       </span>
                       <span style={{ fontSize: 12, color: DIFFICULTY_COLOR[p.difficulty] }}>
@@ -513,14 +511,14 @@ export default function App() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700 }}>
-                    {useCustom ? 'CUSTOM PAYLOAD' : `PAYLOAD — ${selectedPayload?.name || 'none selected'}`}
+                    {useCustom ? 'CUSTOM PAYLOAD' : `PAYLOAD: ${selectedPayload?.name || 'none selected'}`}
                   </span>
                   {!useCustom && selectedPayload && (
                     <span style={{
-                      fontSize: 12, color: techniqueColor(selectedPayload.technique),
-                      background: `${techniqueColor(selectedPayload.technique)}12`,
+                      fontSize: 12, color: C.text2,
+                      background: C.hover,
                       padding: '1px 6px', borderRadius: 2,
-                      border: `1px solid ${techniqueColor(selectedPayload.technique)}30`,
+                      border: `1px solid ${C.border}`,
                     }}>
                       {selectedPayload.technique} · {TECHNIQUES[selectedPayload.technique]?.name}
                     </span>
@@ -652,7 +650,7 @@ export default function App() {
                       borderRadius: 2,
                     }}>
                       <div style={{ fontSize: 13, color: C.text2, letterSpacing: 1, marginBottom: 5 }}>
-                        LLM JUDGE {judging && <span style={{ color: C.amber }}>— EVALUATING…</span>}
+                        LLM JUDGE {judging && <span style={{ color: C.amber }}>EVALUATING…</span>}
                       </div>
                       {judgeResult ? (
                         <>
@@ -747,7 +745,6 @@ export default function App() {
 function FindingCard({ finding: f, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const vc = f.verdict === 'SUCCESS' ? C.green : f.verdict === 'PARTIAL' ? C.amber : f.verdict === 'REVIEW' ? C.blue : C.red;
-  const tc = TECHNIQUES[f.techniqueId]?.color || C.text2;
   const C_mono = '"JetBrains Mono", monospace';
 
   return (
@@ -763,7 +760,7 @@ function FindingCard({ finding: f, onDelete }) {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 14, color: vc, fontWeight: 700 }}>{f.verdict}</span>
-            <span style={{ fontSize: 12, color: tc, background: `${tc}12`, padding: '1px 6px', borderRadius: 2, border: `1px solid ${tc}25` }}>{f.techniqueId}</span>
+            <span style={{ fontSize: 12, color: C.text2, background: C.hover, padding: '1px 6px', borderRadius: 2, border: `1px solid ${C.border}` }}>{f.techniqueId}</span>
             {f.owasp && <span style={{ fontSize: 12, color: C.text2, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{f.owasp}</span>}
             {f.reviewStatus && f.reviewStatus !== 'AUTO_TRIAGED' && <span style={{ fontSize: 12, color: f.reviewStatus === 'REVIEW_REQUIRED' ? C.amber : C.blue, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{f.reviewStatus}</span>}
             <span style={{ fontSize: 13, color: C.text3, marginLeft: 'auto' }}>{new Date(f.timestamp).toLocaleString()}</span>
