@@ -1,6 +1,6 @@
 #ELICIT — Local-First Advesarial Assurance Lab
 
-A **ELICIT is a local-first LLM evaluation lab** for testing adversarial model behavior, triaging findings, and mapping failures to the controls that should have caught them.
+**ELICIT is a local-first LLM evaluation lab** for testing adversarial model behavior, triaging findings, and mapping failures to the controls that should have caught them.
 
 The lab runs in-browser with WebLLM/WebGPU. No external API calls are required after the initial model download.
 
