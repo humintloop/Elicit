@@ -1,6 +1,6 @@
-# LLM Red Team Lab
+#ELICIT — Local-First Advesarial Assurance Lab
 
-A **local-first LLM adversarial evaluation and AI assurance lab** for testing model behavior, triaging findings, mapping results to security/control frameworks, and exporting lightweight assessment records.
+A **ELICIT is a local-first LLM evaluation lab** for testing adversarial model behavior, triaging findings, and mapping failures to the controls that should have caught them.
 
 The lab runs in-browser with WebLLM/WebGPU. No external API calls are required after the initial model download.
 
