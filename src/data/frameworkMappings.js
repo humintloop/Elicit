@@ -8,7 +8,7 @@ export const ASSURANCE_PROFILE = {
   id: 'saas-critical-digital-infrastructure-readiness',
   label: 'SaaS / Critical Digital Infrastructure Readiness',
   company_category: 'AI-enabled SaaS, cybersecurity, edge, cloud, or critical digital infrastructure provider',
-  scope_note: 'Use this profile for Akamai-like providers where AI features may support SaaS, security, network, cloud, or critical digital infrastructure operations. EU AI Act high-risk relevance depends on the actual system role, intended purpose, jurisdiction, and whether the AI system is used as a safety component. Cybersecurity-only components are not automatically safety components.',
+  scope_note: 'Use this profile for CDN, edge, cybersecurity, cloud, or critical digital infrastructure SaaS providers where AI features may support SaaS, security, network, cloud, or critical digital infrastructure operations. EU AI Act high-risk relevance depends on the actual system role, intended purpose, jurisdiction, and whether the AI system is used as a safety component. Cybersecurity-only components are not automatically safety components.',
   eu_ai_act_scope: {
     default_status: 'conditional-readiness',
     classification_required: true,

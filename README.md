@@ -20,6 +20,8 @@ This project is designed for authorized security research, internal AI assurance
 
 Framework mappings are provided as control traceability aids for education and review. They do **not** constitute legal conclusions, audit determinations, certification evidence, or automatic findings of noncompliance.
 
+Security issues in this repository should be reported through GitHub private security advisories when available. See [`SECURITY.md`](./SECURITY.md). The project is licensed under Apache 2.0; see [`LICENSE`](./LICENSE).
+
 ---
 
 ## What It Does
@@ -46,7 +48,8 @@ Framework mappings are provided as control traceability aids for education and r
 | AML.T0051.001 | LLM Prompt Injection: Indirect | LLM01:2025 Prompt Injection | External content / RAG / email / document injection |
 | AML.T0054 | LLM Jailbreak | LLM01:2025 Prompt Injection | Bypass of constraints, guardrails, or intended behavior |
 | AML.T0056 | Extract LLM System Prompt | LLM07:2025 System Prompt Leakage | System prompt / hidden instruction disclosure |
-| AML.T0051.DC | Delimiter Confusion | LLM01:2025 Prompt Injection | Local custom variant, not a registered ATLAS technique |
+
+The payload library also includes local delimiter-confusion variants under the prompt-injection family. They are intentionally kept out of the source-grounded technique table until the taxonomy is cleaner.
 
 ---
 
@@ -70,15 +73,15 @@ Prompt injection succeeds
 
 The initial control notes live in [`controls/`](./controls/README.md). The implemented mappings currently live in [`src/data/frameworkMappings.js`](./src/data/frameworkMappings.js) and are intentionally lightweight. They demonstrate how technical LLM findings can be translated into control weaknesses for SaaS organizations using LLM-based technology.
 
-For Akamai-like organizations, the default profile is **SaaS / Critical Digital Infrastructure Readiness**: AI-enabled SaaS, cybersecurity, edge, cloud, or critical digital infrastructure providers. EU AI Act references are conditional readiness prompts only; high-risk status depends on the actual AI system, intended purpose, jurisdiction, and whether the AI system is used as a safety component or otherwise falls in scope.
+For CDN, edge, or critical digital infrastructure SaaS providers, the default profile is **SaaS / Critical Digital Infrastructure Readiness**. EU AI Act references are conditional readiness prompts only; high-risk status depends on the actual AI system, intended purpose, jurisdiction, and whether the AI system is used as a safety component or otherwise falls in scope.
 
 ---
 
 ## Local Setup
 
 ```bash
-git clone https://github.com/humintloop/elicit.git
-cd elicit
+git clone https://github.com/humintloop/Elicit.git
+cd Elicit
 npm install
 npm run dev
 ```
@@ -158,9 +161,7 @@ The app parses the `VERDICT:` line and preserves the judge text. JSON judge outp
 
 ---
 
-## Current Status
-
-Implemented:
+## What's Implemented
 
 - Local-first WebLLM test runner
 - Structured evaluation cases with case versioning
@@ -172,14 +173,14 @@ Implemented:
 - MITRE ATLAS, OWASP LLM Top 10, NIST AI RMF, ISO/IEC 42001 section 9, and conditional EU AI Act readiness mappings
 - Project-defined mitigation and retest guidance
 
-Next:
+## What's Next
 
 - Stronger judge prompt and JSON parsing
 - System-computed severity, confidence, and false-positive-risk fields
 - Multi-run reproducibility mode
 - Regression testing
 
-Later:
+## Later
 
 - Expand `controls/` into a standalone completed LLM SaaS control set
 - Add control validation examples

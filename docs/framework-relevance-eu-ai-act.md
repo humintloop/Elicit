@@ -4,7 +4,7 @@ These notes explain how ELICIT uses EU AI Act references. They are readiness ind
 
 ## Working Profile
 
-ELICIT uses a **SaaS / Critical Digital Infrastructure Readiness** profile for Akamai-like organizations:
+ELICIT uses a **SaaS / Critical Digital Infrastructure Readiness** profile for CDN, edge, cybersecurity, cloud, and critical digital infrastructure SaaS providers:
 
 - AI-enabled SaaS
 - cybersecurity products and operations

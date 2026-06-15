@@ -20,7 +20,7 @@ Mappings are traceability aids and should be treated as inferred unless noted ot
 
 ## SaaS / Critical Digital Infrastructure Readiness Note
 
-For an Akamai-like provider, ELICIT uses a SaaS / critical digital infrastructure readiness lens. This does not classify a system as high-risk by itself. EU AI Act relevance depends on the actual AI system, intended use, jurisdiction, and whether the AI system is used as a safety component in critical digital infrastructure or another high-risk category.
+For CDN, edge, cybersecurity, cloud, or critical digital infrastructure SaaS providers, ELICIT uses a SaaS / critical digital infrastructure readiness lens. This does not classify a system as high-risk by itself. EU AI Act relevance depends on the actual AI system, intended use, jurisdiction, and whether the AI system is used as a safety component in critical digital infrastructure or another high-risk category.
 
 ## Example Traceability Paths
 

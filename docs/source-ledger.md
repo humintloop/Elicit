@@ -51,7 +51,7 @@ It is a traceability aid, not a legal or audit conclusion.
 - Mappings from MITRE/OWASP entries to `LLM-*` controls are project-defined and should be treated as inferred unless a future source explicitly defines the relationship.
 - ISO/IEC 42001, NIST AI RMF, and EU AI Act references in the app are relevance indicators only. They are not compliance determinations.
 - ISO/IEC 42001 section 9 references are used to frame performance-evaluation evidence: monitoring and measurement, internal audit, and management review.
-- EU AI Act references use a SaaS / critical digital infrastructure readiness lens for Akamai-like providers. High-risk status depends on actual system role, intended purpose, jurisdiction, and whether the AI system is used as a safety component or falls into another high-risk category.
+- EU AI Act references use a SaaS / critical digital infrastructure readiness lens for CDN, edge, cybersecurity, cloud, and critical digital infrastructure SaaS providers. High-risk status depends on actual system role, intended purpose, jurisdiction, and whether the AI system is used as a safety component or falls into another high-risk category.
 - Cybersecurity-only components are not automatically treated as EU AI Act safety components.
 - The local custom technique `AML.T0051.DC` is not an official MITRE ATLAS technique. It is a local variant for delimiter-confusion testing under the broader prompt-injection family.
 

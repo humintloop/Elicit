@@ -24,10 +24,11 @@ control_set:
     category: >
       AI-enabled SaaS, cybersecurity, edge, cloud, or critical digital infrastructure provider.
     scope_note: >
-      Intended for Akamai-like providers where AI may support SaaS, security,
-      network, cloud, or critical digital infrastructure operations. EU AI Act
-      high-risk relevance depends on system role, intended purpose, jurisdiction,
-      and whether the AI system is used as a safety component. Cybersecurity-only
+      Intended for CDN, edge, cybersecurity, cloud, or critical digital
+      infrastructure SaaS providers where AI may support security, network,
+      cloud, or critical digital infrastructure operations. EU AI Act high-risk
+      relevance depends on system role, intended purpose, jurisdiction, and
+      whether the AI system is used as a safety component. Cybersecurity-only
       components are not automatically safety components.
 
 controls:
