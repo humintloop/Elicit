@@ -21,6 +21,9 @@ const C = {
   red:      '#DC4838',
   redDim:   '#743025',
   redBg:    'rgba(220,72,56,.12)',
+  green:    '#4EBA6F',
+  greenBg:  'rgba(78,186,111,.12)',
+  blue:     '#6D8FD6',
   amber:    '#C87844',
   amberDim: '#82492A',
   amberBg:  'rgba(200,120,68,.13)',
@@ -35,6 +38,7 @@ const C = {
 
 // ── Available models ──────────────────────────────────────────────────────────
 const VICTIM_MODELS = [
+  { id: 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',  name: 'TinyLlama 1.1B',  size: '~0.7 GB', vram: '1 GB', quickStart: true },
   { id: 'Llama-3.1-8B-Instruct-q4f32_1-MLC',     name: 'Llama 3.1 8B',    size: '~4.9 GB', vram: '6 GB'  },
   { id: 'Llama-3.2-3B-Instruct-q4f32_1-MLC',     name: 'Llama 3.2 3B',    size: '~2.0 GB', vram: '3 GB'  },
   { id: 'Mistral-7B-Instruct-v0.3-q4f16_1-MLC',  name: 'Mistral 7B',      size: '~4.1 GB', vram: '5 GB'  },
@@ -42,7 +46,6 @@ const VICTIM_MODELS = [
   { id: 'gemma-2-2b-it-q4f16_1-MLC',             name: 'Gemma 2 2B',      size: '~1.4 GB', vram: '2 GB'  },
   { id: 'gemma-2-9b-it-q4f32_1-MLC',             name: 'Gemma 2 9B',      size: '~5.6 GB', vram: '7 GB'  },
   { id: 'Qwen2.5-7B-Instruct-q4f16_1-MLC',       name: 'Qwen 2.5 7B',     size: '~4.4 GB', vram: '5 GB'  },
-  { id: 'TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC',  name: 'TinyLlama 1.1B',  size: '~0.7 GB', vram: '1 GB'  },
 ];
 
 const JUDGE_MODELS = [
@@ -66,6 +69,39 @@ const createRunId = () => `run-${new Date().toISOString().replace(/[-:.TZ]/g, ''
 // Ranks verdicts so we can measure how far apart the heuristic and judge are.
 // A gap of 2 or more steps is a material disagreement: surface it, do not resolve it.
 const verdictRank = (v = '') => ({ FAILURE: 0, FAILED: 0, REVIEW: 1, PARTIAL: 2, SUCCESS: 3 }[String(v).toUpperCase()] ?? 1);
+
+const verdictColor = (v) => {
+  const verdict = String(v || '').toUpperCase();
+  if (verdict === 'SUCCESS') return C.red;
+  if (verdict === 'PARTIAL') return C.amber;
+  if (verdict === 'REVIEW') return C.blue;
+  if (verdict === 'FAILURE' || verdict === 'FAILED') return C.green;
+  return C.text2;
+};
+
+const verdictLabel = (v) => {
+  const verdict = String(v || '').toUpperCase();
+  if (verdict === 'SUCCESS') return 'VULNERABLE';
+  if (verdict === 'PARTIAL') return 'REVIEW NEEDED';
+  if (verdict === 'REVIEW') return 'INCONCLUSIVE';
+  if (verdict === 'FAILURE' || verdict === 'FAILED') return 'DEFENDED';
+  return verdict || 'UNKNOWN';
+};
+
+const dispositionHelp = {
+  UNREVIEWED: 'Not reviewed by a human yet',
+  CONFIRMED: 'Attack worked; finding is valid',
+  MITIGATED: 'Fix applied or control strengthened',
+  NEEDS_RETEST: 'Queue for another run',
+  FALSE_POSITIVE: 'Heuristic was wrong; mark as noise',
+  ACCEPTED_RISK: 'Documented and accepted as-is',
+};
+
+const reviewStatusLabel = (status = '') => String(status)
+  .replace('REVIEW_REQUIRED', 'REVIEW REQUIRED')
+  .replace('NEEDS_REVIEW', 'NEEDS REVIEW')
+  .replace('AUTO_TRIAGED', 'AUTO TRIAGED')
+  .replaceAll('_', ' ');
 
 function summarizeEvaluation(heuristic, judge) {
   const heuristicVerdict = heuristic?.verdict || 'REVIEW';
@@ -139,8 +175,18 @@ export default function App() {
 
   const focusWorkflowStep = (stepId) => {
     setFocusStep(stepId);
-    if (stepId === 'target') setModelConfigOpen(true);
+    if (stepId === 'target' || stepId === 'prompt') setModelConfigOpen(true);
     if (stepId === 'case') setAdvancedMode(false);
+    if (stepId === 'review' && findings.length > 0) setActiveTab('findings');
+  };
+
+  const toggleJudgeMode = () => {
+    if (!judgeMode && !localStorage.getItem('elicit-judge-warning-dismissed')) {
+      const ok = confirm(`Judge review loads a second local model (${selectedJudgeModel?.name || 'judge model'}) and may download another GB-scale model into this browser cache on first use. It temporarily swaps models during evaluation. Continue?`);
+      if (!ok) return;
+      localStorage.setItem('elicit-judge-warning-dismissed', '1');
+    }
+    setJudgeMode(p => !p);
   };
 
   // ── Model loading ──
@@ -258,7 +304,7 @@ export default function App() {
       setJudgeResult({ verdict, text: judgeText });
 
       // Reload victim model
-      setLoadProgress(`Reloading victim model…`);
+      setLoadProgress(`Reloading target model...`);
       await engineRef.current.reload(loadedModelId, {
         initProgressCallback: (p) => setLoadProgress(p.text),
       });
@@ -401,7 +447,6 @@ export default function App() {
     return true;
   });
 
-  const verdictColor = (v) => v === 'SUCCESS' ? C.red : v === 'PARTIAL' ? C.amber : v === 'FAILURE' || v === 'FAILED' ? C.coolDim : v === 'REVIEW' ? C.warmDim : C.text2;
   const selectedVictimModel = VICTIM_MODELS.find(m => m.id === victimModelId);
   const selectedJudgeModel = JUDGE_MODELS.find(m => m.id === judgeModelId);
   const loadedModel = VICTIM_MODELS.find(m => m.id === loadedModelId);
@@ -416,9 +461,11 @@ export default function App() {
     count: PAYLOADS.filter(p => p.difficulty === level && (techFilter === 'ALL' || p.technique === techFilter)).length,
   }));
   const workflowSteps = [
-    { id: 'target', label: '1 Choose target', hint: modelReady ? 'Change model or prompt' : 'Load a local model', done: Boolean(modelReady), active: !modelReady },
-    { id: 'case', label: '2 Select test case', hint: selectedPayload ? selectedPayload.name : 'Pick a payload', done: Boolean(selectedPayload || useCustom), active: Boolean(modelReady && !evalResult) },
-    { id: 'run', label: '3 Run & review', hint: evalResult ? 'Save finding if relevant' : 'Execute evaluation', done: Boolean(evalResult), active: Boolean(evalResult) },
+    { id: 'target', label: '1 Load target', hint: modelReady ? 'Ready' : selectedVictimModel?.size || 'Select model', done: Boolean(modelReady), active: !modelReady },
+    { id: 'prompt', label: '2 Set prompt', hint: 'Target behavior', done: Boolean(victimPrompt.trim()), active: Boolean(modelReady && !victimPrompt.trim()) },
+    { id: 'case', label: '3 Pick case', hint: selectedPayload ? selectedPayload.name : 'Choose test', done: Boolean(selectedPayload || useCustom), active: Boolean(modelReady && !evalResult) },
+    { id: 'run', label: '4 Run test', hint: evalResult ? 'Result ready' : 'Execute', done: Boolean(evalResult), active: Boolean(modelReady && selectedPayload && !evalResult) },
+    { id: 'review', label: '5 Review/export', hint: findings.length ? `${findings.length} saved` : 'Save evidence', done: findings.length > 0, active: Boolean(evalResult) },
   ];
   const nextStepId = !modelReady ? 'target' : (!selectedPayload && !useCustom) ? 'case' : !evalResult ? 'run' : 'review';
   const guideStep = focusStep || nextStepId;
@@ -436,7 +483,7 @@ export default function App() {
     : nextStepId === 'target'
       ? {
           label: 'Next up: load the target model',
-          detail: `Downloads ${selectedVictimModel?.name || 'the selected model'} into your browser cache, then runs locally with WebGPU.`,
+          detail: `Downloads ${selectedVictimModel?.name || 'the selected model'} (${selectedVictimModel?.size || 'model files'}) into your browser cache, then runs locally with WebGPU.`,
           button: modelStatus === 'loading' ? 'LOADING...' : 'LOAD MODEL',
           disabled: modelStatus === 'loading',
           action: () => loadModel(victimModelId),
@@ -716,7 +763,7 @@ export default function App() {
             </>
           ) : (
             <>
-              <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1 }}>VICTIM MODEL</span>
+              <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1 }}>TARGET MODEL</span>
               <select
                 value={victimModelId}
                 onChange={e => setVictimModelId(e.target.value)}
@@ -728,7 +775,7 @@ export default function App() {
                 }}
               >
                 {VICTIM_MODELS.map(m => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.size})</option>
+                  <option key={m.id} value={m.id}>{m.quickStart ? 'Quick Start - ' : ''}{m.name} ({m.size})</option>
                 ))}
               </select>
 
@@ -755,6 +802,11 @@ export default function App() {
           {(modelStatus === 'loading' || judging) && (
             <span style={{ fontSize: 13, color: C.amber, letterSpacing: 0.5, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {loadProgress}
+            </span>
+          )}
+          {modelStatus !== 'loading' && !modelReady && (
+            <span style={{ fontSize: 12, color: selectedVictimModel?.quickStart ? C.green : C.amber, letterSpacing: .2, maxWidth: 330, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {selectedVictimModel?.quickStart ? 'New? Start here: smallest first download.' : `First load downloads ${selectedVictimModel?.size || 'the model'} into this browser.`}
             </span>
           )}
           <button
@@ -809,7 +861,7 @@ export default function App() {
           <AlertTriangle size={14} color={C.amber} style={{ flexShrink: 0 }} />
           <span>
             Local runtime: first load downloads {selectedVictimModel?.size || 'the selected model'} into browser cache and can briefly freeze the tab while WebGPU initializes.
-            {judgeMode && ` Judge mode may download or swap ${selectedJudgeModel?.name || 'the judge model'}, then reload the victim model.`}
+            {judgeMode && ` Judge mode may download or swap ${selectedJudgeModel?.name || 'the judge model'}, then reload the target model.`}
           </span>
         </div>
       )}
@@ -834,7 +886,7 @@ export default function App() {
           </div>
           <div className="next-action-controls" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <button
-              onClick={() => setJudgeMode(p => !p)}
+              onClick={toggleJudgeMode}
               style={{
                 padding: '8px 11px',
                 background: judgeMode ? C.redBg : 'rgba(220,72,56,.055)',
@@ -937,9 +989,11 @@ export default function App() {
           </span>
           {focusStep && (
             <span style={{ flexBasis: '100%', fontSize: 12, color: C.amber, paddingLeft: 2 }}>
-              {focusStep === 'target' && 'Choose a local model, load it, and adjust the victim prompt or preset.'}
-              {focusStep === 'case' && 'Pick a test case from the left, or open Advanced for filters and custom payloads.'}
-              {focusStep === 'run' && 'Run the evaluation, then review the verdict summary and save the finding if it matters.'}
+              {focusStep === 'target' && 'Choose and load a local target model.'}
+              {focusStep === 'prompt' && 'Set the target system prompt or pick a preset.'}
+              {focusStep === 'case' && 'Pick a test case from the left, or filter by attack type and difficulty.'}
+              {focusStep === 'run' && 'Run the evaluation, then review the result summary and save the finding if it matters.'}
+              {focusStep === 'review' && 'Saved findings become review records that can be exported as evidence.'}
             </span>
           )}
         </div>
@@ -963,7 +1017,7 @@ export default function App() {
             {/* Victim config */}
             <div style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700 }}>VICTIM CONFIG</span>
+                <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700 }}>TARGET PROMPT</span>
                 <select
                   onChange={e => { const p = PRESETS.find(x => x.id === e.target.value); if (p) setVictimPrompt(p.prompt); }}
                   style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text2, fontSize: 13, padding: '2px 6px', borderRadius: 2 }}
@@ -975,7 +1029,7 @@ export default function App() {
               <textarea
                 value={victimPrompt}
                 onChange={e => setVictimPrompt(e.target.value)}
-                placeholder="Enter system prompt for the target model…"
+                placeholder="Enter the target system prompt..."
                 rows={5}
                 style={{
                   width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`,
@@ -991,33 +1045,45 @@ export default function App() {
                 <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700 }}>TEST CASES</span>
                 <span style={{ fontSize: 12, color: C.text3 }}>{filteredPayloads.length} shown</span>
               </div>
-              <div className="case-filter-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr .75fr', gap: 8 }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 11, color: C.text3, letterSpacing: 1 }}>ATTACK TYPE</span>
-                  <select
-                    value={techFilter}
-                    onChange={e => setTechFilter(e.target.value)}
-                    style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 13, padding: '6px 7px', borderRadius: 2 }}
-                  >
-                    <option value="ALL">All attack types ({PAYLOADS.length})</option>
+              <div className="case-filter-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1, marginBottom: 5 }}>ATTACK TYPE</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    <button className="pill-btn" onClick={() => setTechFilter('ALL')} style={{
+                      padding: '4px 7px', fontSize: 12, fontWeight: 800,
+                      background: techFilter === 'ALL' ? C.amberBg : 'transparent',
+                      border: `1px solid ${techFilter === 'ALL' ? C.amber : C.borderHi}`,
+                      color: techFilter === 'ALL' ? C.amber : C.text2, cursor: 'pointer', borderRadius: 2,
+                    }}>ALL {PAYLOADS.length}</button>
                     {techniqueOptions.map(t => (
-                      <option key={t.id} value={t.id}>{t.name.replace('LLM ', '')} · {t.id} ({t.count})</option>
+                      <button key={t.id} className="pill-btn" onClick={() => setTechFilter(t.id)} style={{
+                        padding: '4px 7px', fontSize: 12, fontWeight: 800,
+                        background: techFilter === t.id ? C.amberBg : 'transparent',
+                        border: `1px solid ${techFilter === t.id ? C.amber : C.borderHi}`,
+                        color: techFilter === t.id ? C.amber : C.text2, cursor: 'pointer', borderRadius: 2,
+                      }}>{t.name.replace('LLM ', '').replace('Prompt Injection: ', '')} {t.count}</button>
                     ))}
-                  </select>
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <span style={{ fontSize: 11, color: C.text3, letterSpacing: 1 }}>DIFFICULTY</span>
-                  <select
-                    value={difficultyFilter}
-                    onChange={e => setDifficultyFilter(e.target.value)}
-                    style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 13, padding: '6px 7px', borderRadius: 2 }}
-                  >
-                    <option value="ALL">All levels</option>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1, marginBottom: 5 }}>DIFFICULTY</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    <button className="pill-btn" onClick={() => setDifficultyFilter('ALL')} style={{
+                      padding: '4px 7px', fontSize: 12, fontWeight: 800,
+                      background: difficultyFilter === 'ALL' ? C.hover : 'transparent',
+                      border: `1px solid ${difficultyFilter === 'ALL' ? C.text2 : C.borderHi}`,
+                      color: difficultyFilter === 'ALL' ? C.text1 : C.text2, cursor: 'pointer', borderRadius: 2,
+                    }}>ALL</button>
                     {difficultyOptions.map(({ level, count }) => (
-                      <option key={level} value={level}>{level.toUpperCase()} ({count})</option>
+                      <button key={level} className="pill-btn" onClick={() => setDifficultyFilter(level)} style={{
+                        padding: '4px 7px', fontSize: 12, fontWeight: 800,
+                        background: difficultyFilter === level ? C.hover : 'transparent',
+                        border: `1px solid ${difficultyFilter === level ? C.text2 : C.borderHi}`,
+                        color: difficultyFilter === level ? C.text1 : DIFFICULTY_COLOR[level], cursor: 'pointer', borderRadius: 2,
+                      }}>{level.toUpperCase()} {count}</button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </div>
               </div>
               <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: C.bg, border: `1px solid ${C.border}`, padding: '5px 7px', borderRadius: 2 }}>
                 <Search size={11} color={C.text3} />
@@ -1078,6 +1144,11 @@ export default function App() {
                       </span>
                       <span style={{ fontSize: 12, color: C.text3 }}>{technique.owasp}</span>
                       <span style={{ fontSize: 12, color: C.text3 }}>{mapping.mapped_controls?.length || 0} controls</span>
+                      {p.id === 'DI-001' && (
+                        <span style={{ fontSize: 12, color: C.green, background: C.greenBg, border: `1px solid ${C.green}40`, padding: '1px 5px', borderRadius: 2 }}>
+                          RECOMMENDED FIRST RUN
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: 15, color: active ? C.text1 : C.text1, fontWeight: active ? 600 : 400, marginBottom: 2 }}>{p.name}</div>
                     <div style={{ fontSize: 14, color: C.text2, lineHeight: 1.4 }}>{p.description}</div>
@@ -1117,6 +1188,11 @@ export default function App() {
                       {selectedCaseMapping?.mapped_controls?.length ? (
                         <span style={{ fontSize: 12, color: C.text3 }}>{selectedCaseMapping.mapped_controls.length} controls</span>
                       ) : null}
+                      {selectedPayload.id === 'DI-001' && (
+                        <span style={{ fontSize: 12, color: C.green, background: C.greenBg, border: `1px solid ${C.green}40`, padding: '1px 6px', borderRadius: 2 }}>
+                          RECOMMENDED FIRST RUN
+                        </span>
+                      )}
                     </>
                   )}
                 </div>
@@ -1124,7 +1200,7 @@ export default function App() {
                   {/* Judge mode toggle */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <button
-                      onClick={() => setJudgeMode(p => !p)}
+                      onClick={toggleJudgeMode}
                       style={{
                         padding: '6px 9px',
                         borderRadius: 2,
@@ -1257,19 +1333,22 @@ export default function App() {
                       <div style={{ fontSize: 12, color: C.text3, letterSpacing: 1.2, marginBottom: 4 }}>VERDICT SUMMARY</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
                         <span style={{ fontSize: 18, color: verdictColor(finalEvalSummary?.finalVerdict), fontWeight: 800 }}>
-                          {finalEvalSummary?.finalVerdict || evalResult.verdict}
+                          {verdictLabel(finalEvalSummary?.finalVerdict || evalResult.verdict)}
                         </span>
                         <span style={{ fontSize: 12, color: C.text2, background: C.bg, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>
-                          HEURISTIC {evalResult.verdict}
+                          HEURISTIC {verdictLabel(evalResult.verdict)}
                         </span>
                         {judgeMode && judgeResult && (
                           <span style={{ fontSize: 12, color: C.text2, background: C.bg, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>
-                            JUDGE {judgeResult.verdict}
+                            JUDGE {verdictLabel(judgeResult.verdict)}
                           </span>
                         )}
                       </div>
                       <div style={{ fontSize: 14, color: C.text2, lineHeight: 1.45 }}>
                         {finalEvalSummary?.note || evalResult.reason}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.45, marginTop: 5 }}>
+                        Next: save this result as a finding if it should become evidence, then review/export it from Findings.
                       </div>
                     </div>
                     <button
@@ -1300,7 +1379,7 @@ export default function App() {
                   }}>
                     <div style={{ fontSize: 13, color: C.text2, letterSpacing: 1, marginBottom: 5 }}>HEURISTIC EVAL</div>
                     <div style={{ fontSize: 15, color: verdictColor(evalResult.verdict), fontWeight: 700, marginBottom: 4 }}>
-                      {evalResult.label}
+                      {verdictLabel(evalResult.verdict)} · {evalResult.label}
                     </div>
                     <div style={{ fontSize: 14, color: C.text2 }}>{evalResult.reason}</div>
                   </div>
@@ -1319,7 +1398,7 @@ export default function App() {
                       {judgeResult ? (
                         <>
                           <div style={{ fontSize: 15, color: verdictColor(judgeResult.verdict), fontWeight: 700, marginBottom: 4 }}>
-                            {judgeResult.verdict}
+                            {verdictLabel(judgeResult.verdict)}
                           </div>
                           <div style={{ fontSize: 14, color: C.text2, lineHeight: 1.5 }}>{judgeResult.text}</div>
                         </>
@@ -1337,7 +1416,7 @@ export default function App() {
                     <div style={{ padding: '8px 12px', background: C.amberBg, border: `1px solid ${C.amber}40`, borderRadius: 2 }}>
                       <div style={{ fontSize: 13, color: C.amber, letterSpacing: 1, marginBottom: 4, fontWeight: 700 }}>REVIEW REQUIRED</div>
                       <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.45 }}>
-                        Heuristic says {evalResult.verdict}, judge says {judgeResult.verdict}. The evaluators materially disagree, so treat this as a manual-review item and keep both signals in the finding.
+                        Heuristic says {verdictLabel(evalResult.verdict)}, judge says {verdictLabel(judgeResult.verdict)}. The evaluators materially disagree, so treat this as a manual-review item and keep both signals in the finding.
                       </div>
                     </div>
                   )}
@@ -1383,6 +1462,9 @@ export default function App() {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: C.amberBg, border: `1px solid ${C.amber}40`, color: C.text2, padding: '8px 10px', fontSize: 13, lineHeight: 1.45, borderRadius: 2 }}>
+              Findings are stored in this browser only. Export JSON or Markdown before clearing site data, changing browsers, or relying on this as a long-term record.
+            </div>
             {findings.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, color: C.text3, fontSize: 16 }}>
                 No findings in review. Run an evaluation and save a finding to start the queue.
@@ -1407,7 +1489,8 @@ export default function App() {
 // ── Finding Card ──────────────────────────────────────────────────────────────
 function FindingCard({ finding: f, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false);
-  const vc = f.verdict === 'SUCCESS' ? C.red : f.verdict === 'PARTIAL' ? C.amber : f.verdict === 'REVIEW' ? C.warmDim : C.coolDim;
+  const [frameworkOpen, setFrameworkOpen] = useState(false);
+  const vc = verdictColor(f.verdict);
   const reviewerDecision = f.reviewerDecision || 'UNREVIEWED';
   const mitigation = getMitigationMapping(f.techniqueId);
   const officialMitigations = f.officialMitigations || f.official_mitigations || mitigation.official_mitigations || [];
@@ -1426,11 +1509,11 @@ function FindingCard({ finding: f, onUpdate, onDelete }) {
       >
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 14, color: vc, fontWeight: 700 }}>{f.verdict}</span>
+            <span style={{ fontSize: 14, color: vc, fontWeight: 700 }}>{verdictLabel(f.verdict)}</span>
             <span style={{ fontSize: 12, color: C.text2, background: C.hover, padding: '1px 6px', borderRadius: 2, border: `1px solid ${C.border}` }}>{f.techniqueId}</span>
             {f.owasp && <span style={{ fontSize: 12, color: C.text2, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{f.owasp}</span>}
-            {f.reviewStatus && f.reviewStatus !== 'AUTO_TRIAGED' && <span style={{ fontSize: 12, color: f.reviewStatus === 'REVIEW_REQUIRED' ? C.amber : C.warmDim, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{f.reviewStatus}</span>}
-            <span style={{ fontSize: 12, color: reviewerDecision === 'CONFIRMED' ? C.red : reviewerDecision === 'FALSE_POSITIVE' ? C.coolDim : C.text2, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{reviewerDecision}</span>
+            {f.reviewStatus && f.reviewStatus !== 'AUTO_TRIAGED' && <span style={{ fontSize: 12, color: f.reviewStatus === 'REVIEW_REQUIRED' ? C.amber : C.warmDim, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{reviewStatusLabel(f.reviewStatus)}</span>}
+            <span style={{ fontSize: 12, color: reviewerDecision === 'CONFIRMED' ? C.red : reviewerDecision === 'FALSE_POSITIVE' ? C.green : C.text2, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{reviewerDecision.replaceAll('_', ' ')}</span>
             <span style={{ fontSize: 13, color: C.text3, marginLeft: 'auto' }}>{new Date(f.timestamp).toLocaleString()}</span>
           </div>
           <div style={{ fontSize: 15, color: C.text1, fontWeight: 600, marginBottom: 3 }}>{f.payloadName}</div>
@@ -1454,13 +1537,16 @@ function FindingCard({ finding: f, onUpdate, onDelete }) {
                   color: C.text1, fontSize: 14, padding: '5px 8px', borderRadius: 2,
                 }}
               >
-                <option value="UNREVIEWED">UNREVIEWED</option>
-                <option value="CONFIRMED">CONFIRMED</option>
-                <option value="MITIGATED">MITIGATED</option>
-                <option value="NEEDS_RETEST">NEEDS_RETEST</option>
-                <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
-                <option value="ACCEPTED_RISK">ACCEPTED_RISK</option>
+                <option value="UNREVIEWED">Unreviewed</option>
+                <option value="CONFIRMED">Confirm finding</option>
+                <option value="MITIGATED">Mitigated</option>
+                <option value="NEEDS_RETEST">Needs retest</option>
+                <option value="FALSE_POSITIVE">False positive</option>
+                <option value="ACCEPTED_RISK">Accept risk</option>
               </select>
+              <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.4, marginTop: 5 }}>
+                {dispositionHelp[reviewerDecision]}
+              </div>
             </div>
             <div style={{ flex: '1 1 320px' }}>
               <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>REVIEWER NOTES</div>
@@ -1481,8 +1567,28 @@ function FindingCard({ finding: f, onUpdate, onDelete }) {
             {f.runId && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>RUN {f.runId}</span>}
             {f.caseId && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>CASE {f.caseId} · {f.caseVersion || 'unversioned'}</span>}
             {f.reviewerReviewedAt && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>REVIEWED {new Date(f.reviewerReviewedAt).toLocaleString()}</span>}
-            {f.iso42001Relevance?.length > 0 && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>ISO {f.iso42001Relevance.join(', ')}</span>}
-            {f.euAiActRelevance?.length > 0 && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>EU {f.euAiActRelevance.join(', ')}</span>}
+          </div>
+          <div style={{ border: `1px solid ${C.border}`, background: C.bg, borderRadius: 2 }}>
+            <button
+              onClick={() => setFrameworkOpen(p => !p)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '7px 9px', background: 'transparent', border: 'none', color: C.text2,
+                fontSize: 13, fontWeight: 700, letterSpacing: .6, cursor: 'pointer',
+              }}
+            >
+              <span>Framework & compliance mapping · {f.techniqueId}{f.owasp ? ` · ${f.owasp}` : ''}</span>
+              {frameworkOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+            {frameworkOpen && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 9px 9px' }}>
+                {f.iso42001Relevance?.length > 0 && <span style={{ fontSize: 12, color: C.text3, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>ISO {f.iso42001Relevance.join(', ')}</span>}
+                {f.euAiActRelevance?.length > 0 && <span style={{ fontSize: 12, color: C.text3, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>EU {f.euAiActRelevance.join(', ')}</span>}
+                {f.mappedControls?.map((control, idx) => (
+                  <span key={idx} style={{ fontSize: 12, color: C.text3, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>{control}</span>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>PAYLOAD</div>
@@ -1535,12 +1641,16 @@ function FindingCard({ finding: f, onUpdate, onDelete }) {
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>HEURISTIC</div>
-              {(f.heuristicLabel || f.heuristicVerdict) && <div style={{ fontSize: 12, color: C.text2, marginBottom: 3 }}>{f.heuristicLabel || f.heuristicVerdict}</div>}
+              {(f.heuristicLabel || f.heuristicVerdict) && (
+                <div style={{ fontSize: 12, color: C.text2, marginBottom: 3 }}>
+                  {f.heuristicVerdict ? verdictLabel(f.heuristicVerdict) : 'HEURISTIC'}{f.heuristicLabel ? ` · ${f.heuristicLabel}` : ''}
+                </div>
+              )}
               <div style={{ fontSize: 14, color: C.text2 }}>{f.evalReason}</div>
             </div>
             {f.judgeReason && (
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>LLM JUDGE {f.judgeVerdict && `(${f.judgeVerdict})`}</div>
+                <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>LLM JUDGE {f.judgeVerdict && `(${verdictLabel(f.judgeVerdict)})`}</div>
                 <div style={{ fontSize: 14, color: C.text2 }}>{f.judgeReason}</div>
               </div>
             )}
