@@ -94,6 +94,8 @@ export default function App() {
   const [victimModelId,  setVictimModelId]  = useState(VICTIM_MODELS[0].id);
   const [judgeModelId,   setJudgeModelId]   = useState(JUDGE_MODELS[0].id);
   const [loadedModelId,  setLoadedModelId]  = useState(null);
+  const [modelConfigOpen,setModelConfigOpen]= useState(true);
+  const [advancedMode,   setAdvancedMode]   = useState(false);
 
   // Victim config
   const [victimPrompt,   setVictimPrompt]   = useState(PRESETS[0].prompt);
@@ -141,6 +143,7 @@ export default function App() {
       });
       setLoadedModelId(modelId);
       setModelStatus('ready');
+      setModelConfigOpen(false);
       setLoadProgress('');
     } catch (e) {
       setModelStatus('error');
@@ -386,6 +389,15 @@ export default function App() {
   const verdictColor = (v) => v === 'SUCCESS' ? C.red : v === 'PARTIAL' ? C.amber : v === 'FAILURE' || v === 'FAILED' ? C.coolDim : v === 'REVIEW' ? C.warmDim : C.text2;
   const selectedVictimModel = VICTIM_MODELS.find(m => m.id === victimModelId);
   const selectedJudgeModel = JUDGE_MODELS.find(m => m.id === judgeModelId);
+  const loadedModel = VICTIM_MODELS.find(m => m.id === loadedModelId);
+  const modelReady = modelStatus === 'ready' && loadedModelId;
+  const selectedCaseMapping = selectedPayload ? buildCaseMapping(selectedPayload.technique, selectedPayload) : null;
+  const finalEvalSummary = evalResult ? summarizeEvaluation(evalResult, judgeResult) : null;
+  const workflowSteps = [
+    { label: '1 Choose target', done: Boolean(modelReady), active: !modelReady },
+    { label: '2 Run evaluation', done: Boolean(evalResult), active: Boolean(modelReady && !evalResult) },
+    { label: '3 Review finding', done: false, active: Boolean(evalResult) },
+  ];
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -542,37 +554,65 @@ export default function App() {
 
         {/* Model selector */}
         <div className="model-bar">
-          <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1 }}>VICTIM MODEL</span>
-          <select
-            value={victimModelId}
-            onChange={e => setVictimModelId(e.target.value)}
-            disabled={modelStatus === 'loading' || running}
-            style={{
-              background: C.surface, border: `1px solid ${C.border}`,
-              color: C.text1, fontSize: 15, padding: '4px 8px',
-              borderRadius: 2, cursor: 'pointer',
-            }}
-          >
-            {VICTIM_MODELS.map(m => (
-              <option key={m.id} value={m.id}>{m.name} ({m.size})</option>
-            ))}
-          </select>
+          {modelReady && !modelConfigOpen ? (
+            <>
+              <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1 }}>TARGET</span>
+              <span style={{
+                fontSize: 13,
+                color: C.text1,
+                background: C.surface,
+                border: `1px solid ${C.border}`,
+                padding: '4px 8px',
+                borderRadius: 2,
+              }}>
+                {loadedModel?.name || loadedModelId} · READY
+              </span>
+              <button
+                onClick={() => setModelConfigOpen(true)}
+                style={{
+                  padding: '5px 10px', fontSize: 12, fontWeight: 700, letterSpacing: 1,
+                  background: 'transparent', border: `1px solid ${C.border}`,
+                  color: C.text3, cursor: 'pointer', borderRadius: 2,
+                }}
+              >
+                CHANGE
+              </button>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1 }}>VICTIM MODEL</span>
+              <select
+                value={victimModelId}
+                onChange={e => setVictimModelId(e.target.value)}
+                disabled={modelStatus === 'loading' || running}
+                style={{
+                  background: C.surface, border: `1px solid ${C.border}`,
+                  color: C.text1, fontSize: 15, padding: '4px 8px',
+                  borderRadius: 2, cursor: 'pointer',
+                }}
+              >
+                {VICTIM_MODELS.map(m => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.size})</option>
+                ))}
+              </select>
 
-          {/* Load button */}
-          <button
-            onClick={() => loadModel(victimModelId)}
-            disabled={modelStatus === 'loading' || modelStatus === 'ready' && loadedModelId === victimModelId}
-            style={{
-              padding: '5px 12px', fontSize: 14, fontWeight: 700, letterSpacing: 1,
-              background: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amberBg : C.surface,
-              border: `1px solid ${modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.borderHi}`,
-              color: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.text2,
-              cursor: 'pointer', borderRadius: 2,
-              opacity: modelStatus === 'loading' ? 0.5 : 1,
-            }}
-          >
-            {modelStatus === 'loading' ? 'LOADING…' : modelStatus === 'ready' && loadedModelId === victimModelId ? '● LOADED' : 'LOAD →'}
-          </button>
+              {/* Load button */}
+              <button
+                onClick={() => loadModel(victimModelId)}
+                disabled={modelStatus === 'loading' || modelStatus === 'ready' && loadedModelId === victimModelId}
+                style={{
+                  padding: '5px 12px', fontSize: 14, fontWeight: 700, letterSpacing: 1,
+                  background: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amberBg : C.surface,
+                  border: `1px solid ${modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.borderHi}`,
+                  color: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.text2,
+                  cursor: 'pointer', borderRadius: 2,
+                  opacity: modelStatus === 'loading' ? 0.5 : 1,
+                }}
+              >
+                {modelStatus === 'loading' ? 'LOADING…' : modelStatus === 'ready' && loadedModelId === victimModelId ? '● LOADED' : 'LOAD →'}
+              </button>
+            </>
+          )}
 
           {/* Progress */}
           {(modelStatus === 'loading' || judging) && (
@@ -580,6 +620,23 @@ export default function App() {
               {loadProgress}
             </span>
           )}
+          <button
+            onClick={() => setAdvancedMode(p => !p)}
+            style={{
+              marginLeft: 'auto',
+              padding: '5px 10px',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1,
+              background: advancedMode ? C.amberBg : 'transparent',
+              border: `1px solid ${advancedMode ? C.amber + '60' : C.border}`,
+              color: advancedMode ? C.amber : C.text3,
+              cursor: 'pointer',
+              borderRadius: 2,
+            }}
+          >
+            {advancedMode ? 'ADVANCED ON' : 'ADVANCED'}
+          </button>
         </div>
 
         {/* Tab nav */}
@@ -620,6 +677,47 @@ export default function App() {
         </div>
       )}
 
+      {activeTab === 'lab' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+          padding: '9px 20px',
+          borderBottom: `1px solid ${C.border}`,
+          background: 'rgba(10,12,22,.76)',
+          flexShrink: 0,
+        }}>
+          {workflowSteps.map(step => (
+            <div key={step.label} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '4px 9px',
+              borderRadius: 2,
+              border: `1px solid ${step.active ? C.amber + '66' : C.border}`,
+              background: step.active ? C.amberBg : step.done ? 'rgba(101,113,137,.10)' : 'transparent',
+              color: step.active ? C.amber : step.done ? C.text2 : C.text3,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: .7,
+            }}>
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: step.active ? C.amber : step.done ? C.coolDim : C.borderHi,
+              }} />
+              {step.label}
+            </div>
+          ))}
+          <span style={{ marginLeft: 'auto', fontSize: 12, color: C.text3, maxWidth: '52%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {selectedPayload ? `${selectedPayload.technique} · ${selectedPayload.owasp || TECHNIQUES[selectedPayload.technique]?.owasp || 'mapped case'}` : 'Select a case'}
+            {selectedCaseMapping?.mapped_controls?.length ? ` · ${selectedCaseMapping.mapped_controls.length} mapped controls` : ''}
+          </span>
+        </div>
+      )}
+
       {/* ═══ LAB VIEW ════════════════════════════════════════════════════════ */}
       {activeTab === 'lab' && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -653,6 +751,7 @@ export default function App() {
             </div>
 
             {/* Technique filter */}
+            {advancedMode && (
             <div style={{ padding: '8px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 <button className="pill-btn" onClick={() => setTechFilter('ALL')} style={{
@@ -671,6 +770,7 @@ export default function App() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Search */}
             <div style={{ padding: '6px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -685,17 +785,19 @@ export default function App() {
             {/* Payload list */}
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {/* Custom payload option */}
-              <div
-                className="row"
-                onClick={() => { setUseCustom(true); setSelectedPayload(null); }}
-                style={{
-                  padding: '9px 14px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`,
-                  background: useCustom ? C.hover : 'transparent',
-                }}
-              >
-                <div style={{ fontSize: 14, color: C.amber, fontWeight: 700, marginBottom: 2 }}>+ CUSTOM PAYLOAD</div>
-                <div style={{ fontSize: 14, color: C.text2 }}>Write your own injection</div>
-              </div>
+              {advancedMode && (
+                <div
+                  className="row"
+                  onClick={() => { setUseCustom(true); setSelectedPayload(null); }}
+                  style={{
+                    padding: '9px 14px', cursor: 'pointer', borderBottom: `1px solid ${C.border}`,
+                    background: useCustom ? C.hover : 'transparent',
+                  }}
+                >
+                  <div style={{ fontSize: 14, color: C.amber, fontWeight: 700, marginBottom: 2 }}>+ CUSTOM PAYLOAD</div>
+                  <div style={{ fontSize: 14, color: C.text2 }}>Write your own injection</div>
+                </div>
+              )}
 
               {filteredPayloads.map(p => {
                 const active = !useCustom && selectedPayload?.id === p.id;
@@ -749,6 +851,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {/* Judge mode toggle */}
+                  {(advancedMode || judgeMode) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 13, color: C.text2 }}>JUDGE</span>
                     <button
@@ -775,6 +878,7 @@ export default function App() {
                       </select>
                     )}
                   </div>
+                  )}
                   {/* Run button */}
                   <button
                     onClick={running ? stopAttack : runAttack}
@@ -821,6 +925,26 @@ export default function App() {
                       ℹ {selectedPayload.note}
                     </div>
                   )}
+                  {advancedMode && (
+                    <div style={{
+                      marginTop: 8,
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                      gap: 8,
+                    }}>
+                      {[
+                        ['PURPOSE', selectedPayload.objective],
+                        ['EXPECTED', selectedPayload.expected_secure_behavior],
+                        ['FAILURE', selectedPayload.failure_mode],
+                        ['CRITERIA', selectedPayload.success_criteria],
+                      ].filter(([, value]) => value).map(([label, value]) => (
+                        <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, padding: '7px 9px', borderRadius: 2 }}>
+                          <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1, marginBottom: 3 }}>{label}</div>
+                          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.45 }}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ fontSize: 15, color: C.text3, padding: '8px 10px', border: `1px solid ${C.borderHi}`, background: C.surface, borderRadius: 4 }}>
@@ -850,6 +974,51 @@ export default function App() {
               {/* Eval results */}
               {evalResult && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0, animation: 'fadeIn .2s ease' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 14px',
+                    background: `${verdictColor(finalEvalSummary?.finalVerdict)}0f`,
+                    border: `1px solid ${verdictColor(finalEvalSummary?.finalVerdict)}40`,
+                    borderRadius: 4,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: C.text3, letterSpacing: 1.2, marginBottom: 4 }}>VERDICT SUMMARY</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                        <span style={{ fontSize: 18, color: verdictColor(finalEvalSummary?.finalVerdict), fontWeight: 800 }}>
+                          {finalEvalSummary?.finalVerdict || evalResult.verdict}
+                        </span>
+                        <span style={{ fontSize: 12, color: C.text2, background: C.bg, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>
+                          HEURISTIC {evalResult.verdict}
+                        </span>
+                        {judgeMode && judgeResult && (
+                          <span style={{ fontSize: 12, color: C.text2, background: C.bg, border: `1px solid ${C.border}`, padding: '1px 6px', borderRadius: 2 }}>
+                            JUDGE {judgeResult.verdict}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 14, color: C.text2, lineHeight: 1.45 }}>
+                        {finalEvalSummary?.note || evalResult.reason}
+                      </div>
+                    </div>
+                    <button
+                      onClick={addFinding}
+                      disabled={judging || (judgeMode && !judgeResult)}
+                      style={{
+                        padding: '9px 13px', background: C.amberBg, border: `1px solid ${C.amber}40`,
+                        color: C.amber, fontSize: 13, fontWeight: 700, letterSpacing: 1,
+                        cursor: judging || (judgeMode && !judgeResult) ? 'not-allowed' : 'pointer',
+                        opacity: judging || (judgeMode && !judgeResult) ? 0.45 : 1,
+                        borderRadius: 2, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <Plus size={13} />
+                      {judging ? 'WAIT' : 'SAVE FINDING'}
+                    </button>
+                  </div>
+                  {(advancedMode || judgeMode) && (
                   <div style={{ display: 'flex', gap: 10 }}>
                   {/* Heuristic result */}
                   <div style={{
@@ -891,24 +1060,8 @@ export default function App() {
                       ) : null}
                     </div>
                   )}
-
-                  {/* Add to findings */}
-                  <button
-                    onClick={addFinding}
-                    disabled={judging || (judgeMode && !judgeResult)}
-                    style={{
-                      padding: '10px 14px', background: C.amberBg, border: `1px solid ${C.amber}40`,
-                      color: C.amber, fontSize: 14, fontWeight: 700, letterSpacing: 1,
-                      cursor: judging || (judgeMode && !judgeResult) ? 'not-allowed' : 'pointer',
-                      opacity: judging || (judgeMode && !judgeResult) ? 0.45 : 1,
-                      borderRadius: 2, flexShrink: 0,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                    }}
-                  >
-                    <Plus size={14} />
-                    {judging ? 'WAIT' : 'LOG'}
-                  </button>
                   </div>
+                  )}
                   {judgeMode && judgeResult && summarizeEvaluation(evalResult, judgeResult).disagreement && (
                     <div style={{ padding: '8px 12px', background: C.amberBg, border: `1px solid ${C.amber}40`, borderRadius: 2 }}>
                       <div style={{ fontSize: 13, color: C.amber, letterSpacing: 1, marginBottom: 4, fontWeight: 700 }}>REVIEW REQUIRED</div>
@@ -929,7 +1082,7 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '10px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700, flex: 1 }}>
-              {findings.length} FINDING{findings.length !== 1 ? 'S' : ''} LOGGED
+              REVIEW QUEUE · {findings.length} FINDING{findings.length !== 1 ? 'S' : ''}
             </span>
             {findings.length > 0 && (
               <>
@@ -961,7 +1114,7 @@ export default function App() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {findings.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, color: C.text3, fontSize: 16 }}>
-                No findings logged yet. Execute attacks in the lab and log successful findings.
+                No findings in review. Run an evaluation and save a finding to start the queue.
               </div>
             ) : (
               findings.map((f) => (
@@ -1032,6 +1185,7 @@ function FindingCard({ finding: f, onUpdate, onDelete }) {
               >
                 <option value="UNREVIEWED">UNREVIEWED</option>
                 <option value="CONFIRMED">CONFIRMED</option>
+                <option value="MITIGATED">MITIGATED</option>
                 <option value="NEEDS_RETEST">NEEDS_RETEST</option>
                 <option value="FALSE_POSITIVE">FALSE_POSITIVE</option>
                 <option value="ACCEPTED_RISK">ACCEPTED_RISK</option>
