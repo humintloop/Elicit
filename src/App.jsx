@@ -96,6 +96,7 @@ export default function App() {
   const [loadedModelId,  setLoadedModelId]  = useState(null);
   const [modelConfigOpen,setModelConfigOpen]= useState(true);
   const [advancedMode,   setAdvancedMode]   = useState(false);
+  const [focusStep,      setFocusStep]      = useState(null);
 
   // Victim config
   const [victimPrompt,   setVictimPrompt]   = useState(PRESETS[0].prompt);
@@ -128,6 +129,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('elicit-findings', JSON.stringify(findings));
   }, [findings]);
+
+  useEffect(() => {
+    if (!focusStep) return undefined;
+    const timer = setTimeout(() => setFocusStep(null), 2400);
+    return () => clearTimeout(timer);
+  }, [focusStep]);
+
+  const focusWorkflowStep = (stepId) => {
+    setFocusStep(stepId);
+    if (stepId === 'target') setModelConfigOpen(true);
+    if (stepId === 'case') setAdvancedMode(false);
+  };
 
   // ── Model loading ──
   const loadModel = async (modelId) => {
@@ -394,9 +407,9 @@ export default function App() {
   const selectedCaseMapping = selectedPayload ? buildCaseMapping(selectedPayload.technique, selectedPayload) : null;
   const finalEvalSummary = evalResult ? summarizeEvaluation(evalResult, judgeResult) : null;
   const workflowSteps = [
-    { label: '1 Choose target', done: Boolean(modelReady), active: !modelReady },
-    { label: '2 Run evaluation', done: Boolean(evalResult), active: Boolean(modelReady && !evalResult) },
-    { label: '3 Review finding', done: false, active: Boolean(evalResult) },
+    { id: 'target', label: '1 Choose target', hint: modelReady ? 'Change model or prompt' : 'Load a local model', done: Boolean(modelReady), active: !modelReady },
+    { id: 'case', label: '2 Select test case', hint: selectedPayload ? selectedPayload.name : 'Pick a payload', done: Boolean(selectedPayload || useCustom), active: Boolean(modelReady && !evalResult) },
+    { id: 'run', label: '3 Run & review', hint: evalResult ? 'Save finding if relevant' : 'Execute evaluation', done: Boolean(evalResult), active: Boolean(evalResult) },
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -561,7 +574,7 @@ export default function App() {
                 fontSize: 13,
                 color: C.text1,
                 background: C.surface,
-                border: `1px solid ${C.border}`,
+                border: `1px solid ${focusStep === 'target' ? C.amber : C.border}`,
                 padding: '4px 8px',
                 borderRadius: 2,
               }}>
@@ -571,8 +584,10 @@ export default function App() {
                 onClick={() => setModelConfigOpen(true)}
                 style={{
                   padding: '5px 10px', fontSize: 12, fontWeight: 700, letterSpacing: 1,
-                  background: 'transparent', border: `1px solid ${C.border}`,
-                  color: C.text3, cursor: 'pointer', borderRadius: 2,
+                  background: focusStep === 'target' ? C.amberBg : 'transparent',
+                  border: `1px solid ${focusStep === 'target' ? C.amber : C.border}`,
+                  color: focusStep === 'target' ? C.amber : C.text3,
+                  cursor: 'pointer', borderRadius: 2,
                 }}
               >
                 CHANGE
@@ -586,7 +601,7 @@ export default function App() {
                 onChange={e => setVictimModelId(e.target.value)}
                 disabled={modelStatus === 'loading' || running}
                 style={{
-                  background: C.surface, border: `1px solid ${C.border}`,
+                  background: C.surface, border: `1px solid ${focusStep === 'target' ? C.amber : C.border}`,
                   color: C.text1, fontSize: 15, padding: '4px 8px',
                   borderRadius: 2, cursor: 'pointer',
                 }}
@@ -603,7 +618,7 @@ export default function App() {
                 style={{
                   padding: '5px 12px', fontSize: 14, fontWeight: 700, letterSpacing: 1,
                   background: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amberBg : C.surface,
-                  border: `1px solid ${modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.borderHi}`,
+                  border: `1px solid ${focusStep === 'target' ? C.amber : modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.borderHi}`,
                   color: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.text2,
                   cursor: 'pointer', borderRadius: 2,
                   opacity: modelStatus === 'loading' ? 0.5 : 1,
@@ -689,18 +704,20 @@ export default function App() {
           flexShrink: 0,
         }}>
           {workflowSteps.map(step => (
-            <div key={step.label} style={{
+            <button key={step.label} onClick={() => focusWorkflowStep(step.id)} style={{
               display: 'flex',
               alignItems: 'center',
               gap: 7,
-              padding: '4px 9px',
+              padding: '5px 10px',
               borderRadius: 2,
-              border: `1px solid ${step.active ? C.amber + '66' : C.border}`,
+              border: `1px solid ${focusStep === step.id ? C.amber : step.active ? C.amber + '66' : C.border}`,
               background: step.active ? C.amberBg : step.done ? 'rgba(101,113,137,.10)' : 'transparent',
               color: step.active ? C.amber : step.done ? C.text2 : C.text3,
               fontSize: 12,
               fontWeight: 700,
               letterSpacing: .7,
+              cursor: 'pointer',
+              boxShadow: focusStep === step.id ? '0 0 0 1px rgba(200,120,68,.24)' : 'none',
             }}>
               <span style={{
                 width: 7,
@@ -708,13 +725,21 @@ export default function App() {
                 borderRadius: '50%',
                 background: step.active ? C.amber : step.done ? C.coolDim : C.borderHi,
               }} />
-              {step.label}
-            </div>
+              <span>{step.label}</span>
+              <span style={{ color: C.text3, fontWeight: 500, letterSpacing: 0 }}>{step.hint}</span>
+            </button>
           ))}
           <span style={{ marginLeft: 'auto', fontSize: 12, color: C.text3, maxWidth: '52%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {selectedPayload ? `${selectedPayload.technique} · ${selectedPayload.owasp || TECHNIQUES[selectedPayload.technique]?.owasp || 'mapped case'}` : 'Select a case'}
             {selectedCaseMapping?.mapped_controls?.length ? ` · ${selectedCaseMapping.mapped_controls.length} mapped controls` : ''}
           </span>
+          {focusStep && (
+            <span style={{ flexBasis: '100%', fontSize: 12, color: C.amber, paddingLeft: 2 }}>
+              {focusStep === 'target' && 'Choose a local model, load it, and adjust the victim prompt or preset.'}
+              {focusStep === 'case' && 'Pick a test case from the left, or open Advanced for filters and custom payloads.'}
+              {focusStep === 'run' && 'Run the evaluation, then review the verdict summary and save the finding if it matters.'}
+            </span>
+          )}
         </div>
       )}
 
@@ -723,7 +748,15 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
           {/* ── LEFT: Config + Payload Library ── */}
-          <div style={{ width: 360, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(10,12,22,.88)' }}>
+            <div style={{
+              width: 360,
+              borderRight: `1px solid ${focusStep === 'case' ? C.amber : C.border}`,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              background: focusStep === 'case' ? 'rgba(200,120,68,.045)' : 'rgba(10,12,22,.88)',
+              boxShadow: focusStep === 'case' ? 'inset -1px 0 0 rgba(200,120,68,.34)' : 'none',
+            }}>
 
             {/* Victim config */}
             <div style={{ padding: '12px 14px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
@@ -832,7 +865,12 @@ export default function App() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(7,9,18,.52)' }}>
 
             {/* Payload editor / preview */}
-            <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+            <div style={{
+              padding: '12px 16px',
+              borderBottom: `1px solid ${focusStep === 'case' ? C.amber : C.border}`,
+              flexShrink: 0,
+              background: focusStep === 'case' ? 'rgba(200,120,68,.045)' : 'transparent',
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700 }}>
@@ -851,7 +889,6 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   {/* Judge mode toggle */}
-                  {(advancedMode || judgeMode) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 13, color: C.text2 }}>JUDGE</span>
                     <button
@@ -878,7 +915,6 @@ export default function App() {
                       </select>
                     )}
                   </div>
-                  )}
                   {/* Run button */}
                   <button
                     onClick={running ? stopAttack : runAttack}
@@ -887,11 +923,12 @@ export default function App() {
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '6px 16px', fontSize: 14, fontWeight: 700, letterSpacing: 1.5,
                       background: C.amberBg,
-                      border: `1px solid ${C.amber}`,
+                      border: `1px solid ${focusStep === 'run' ? C.text1 : C.amber}`,
                       color: C.amber,
                       cursor: modelStatus !== 'ready' ? 'not-allowed' : 'pointer',
                       opacity: modelStatus !== 'ready' ? 0.4 : 1,
                       borderRadius: 2,
+                      boxShadow: focusStep === 'run' ? '0 0 0 2px rgba(200,120,68,.24)' : 'none',
                     }}
                   >
                     {running ? <><Square size={10} /> STOP</> : <><Play size={10} /> EXECUTE</>}
