@@ -411,6 +411,8 @@ export default function App() {
     { id: 'case', label: '2 Select test case', hint: selectedPayload ? selectedPayload.name : 'Pick a payload', done: Boolean(selectedPayload || useCustom), active: Boolean(modelReady && !evalResult) },
     { id: 'run', label: '3 Run & review', hint: evalResult ? 'Save finding if relevant' : 'Execute evaluation', done: Boolean(evalResult), active: Boolean(evalResult) },
   ];
+  const nextStepId = !modelReady ? 'target' : (!selectedPayload && !useCustom) ? 'case' : !evalResult ? 'run' : 'review';
+  const guideStep = focusStep || nextStepId;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -542,9 +544,63 @@ export default function App() {
             display: none;
           }
         }
+        @media (max-width: 760px) {
+          .workflow-strip {
+            align-items: stretch !important;
+            overflow-x: auto;
+            padding: 8px 12px !important;
+          }
+          .workflow-strip > button {
+            flex: 0 0 auto;
+            min-width: 220px;
+            justify-content: flex-start;
+          }
+          .workflow-summary {
+            display: none !important;
+          }
+          .lab-shell {
+            flex-direction: column !important;
+            overflow-y: auto !important;
+          }
+          .lab-sidebar {
+            width: 100% !important;
+            min-height: 42vh;
+            max-height: 48vh;
+            border-right: none !important;
+            border-bottom: 1px solid ${C.border} !important;
+          }
+          .lab-main {
+            min-height: 58vh;
+            overflow: visible !important;
+          }
+          .payload-toolbar {
+            align-items: stretch !important;
+            flex-direction: column !important;
+            gap: 8px;
+          }
+          .payload-actions {
+            justify-content: space-between;
+            flex-wrap: wrap;
+            width: 100%;
+          }
+          .payload-actions > button {
+            flex: 1 1 160px;
+            justify-content: center;
+          }
+          .case-detail-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .eval-detail-row {
+            flex-direction: column !important;
+          }
+        }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes guidePulse {
+          0%, 100% { filter: drop-shadow(0 0 0 rgba(200,120,68,0)); }
+          50% { filter: drop-shadow(0 0 8px rgba(200,120,68,.34)); }
+        }
         @keyframes scan {
           0% { transform: translateY(-100%); }
           100% { transform: translateY(100vh); }
@@ -574,7 +630,7 @@ export default function App() {
                 fontSize: 13,
                 color: C.text1,
                 background: C.surface,
-                border: `1px solid ${focusStep === 'target' ? C.amber : C.border}`,
+                border: `1px solid ${guideStep === 'target' ? C.amber : C.border}`,
                 padding: '4px 8px',
                 borderRadius: 2,
               }}>
@@ -584,10 +640,12 @@ export default function App() {
                 onClick={() => setModelConfigOpen(true)}
                 style={{
                   padding: '5px 10px', fontSize: 12, fontWeight: 700, letterSpacing: 1,
-                  background: focusStep === 'target' ? C.amberBg : 'transparent',
-                  border: `1px solid ${focusStep === 'target' ? C.amber : C.border}`,
-                  color: focusStep === 'target' ? C.amber : C.text3,
+                  background: guideStep === 'target' ? C.amberBg : 'transparent',
+                  border: `1px solid ${guideStep === 'target' ? C.amber : C.border}`,
+                  color: guideStep === 'target' ? C.amber : C.text3,
                   cursor: 'pointer', borderRadius: 2,
+                  boxShadow: nextStepId === 'target' ? '0 0 18px rgba(200,120,68,.18)' : 'none',
+                  animation: nextStepId === 'target' ? 'guidePulse 2.4s ease-in-out infinite' : 'none',
                 }}
               >
                 CHANGE
@@ -601,7 +659,7 @@ export default function App() {
                 onChange={e => setVictimModelId(e.target.value)}
                 disabled={modelStatus === 'loading' || running}
                 style={{
-                  background: C.surface, border: `1px solid ${focusStep === 'target' ? C.amber : C.border}`,
+                  background: C.surface, border: `1px solid ${guideStep === 'target' ? C.amber : C.border}`,
                   color: C.text1, fontSize: 15, padding: '4px 8px',
                   borderRadius: 2, cursor: 'pointer',
                 }}
@@ -618,10 +676,12 @@ export default function App() {
                 style={{
                   padding: '5px 12px', fontSize: 14, fontWeight: 700, letterSpacing: 1,
                   background: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amberBg : C.surface,
-                  border: `1px solid ${focusStep === 'target' ? C.amber : modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.borderHi}`,
+                  border: `1px solid ${guideStep === 'target' ? C.amber : modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.borderHi}`,
                   color: modelStatus === 'ready' && loadedModelId === victimModelId ? C.amber : C.text2,
                   cursor: 'pointer', borderRadius: 2,
                   opacity: modelStatus === 'loading' ? 0.5 : 1,
+                  boxShadow: nextStepId === 'target' ? '0 0 18px rgba(200,120,68,.18)' : 'none',
+                  animation: nextStepId === 'target' ? 'guidePulse 2.4s ease-in-out infinite' : 'none',
                 }}
               >
                 {modelStatus === 'loading' ? 'LOADING…' : modelStatus === 'ready' && loadedModelId === victimModelId ? '● LOADED' : 'LOAD →'}
@@ -672,7 +732,7 @@ export default function App() {
       </header>
 
       {activeTab === 'lab' && (modelStatus !== 'ready' || judgeMode) && (
-        <div style={{
+        <div className="runtime-warning" style={{
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -693,7 +753,7 @@ export default function App() {
       )}
 
       {activeTab === 'lab' && (
-        <div style={{
+        <div className="workflow-strip" style={{
           display: 'flex',
           alignItems: 'center',
           flexWrap: 'wrap',
@@ -710,14 +770,15 @@ export default function App() {
               gap: 7,
               padding: '5px 10px',
               borderRadius: 2,
-              border: `1px solid ${focusStep === step.id ? C.amber : step.active ? C.amber + '66' : C.border}`,
+              border: `1px solid ${guideStep === step.id ? C.amber : step.active ? C.amber + '66' : C.border}`,
               background: step.active ? C.amberBg : step.done ? 'rgba(101,113,137,.10)' : 'transparent',
               color: step.active ? C.amber : step.done ? C.text2 : C.text3,
               fontSize: 12,
               fontWeight: 700,
               letterSpacing: .7,
               cursor: 'pointer',
-              boxShadow: focusStep === step.id ? '0 0 0 1px rgba(200,120,68,.24)' : 'none',
+              boxShadow: nextStepId === step.id ? '0 0 18px rgba(200,120,68,.16)' : focusStep === step.id ? '0 0 0 1px rgba(200,120,68,.24)' : 'none',
+              animation: nextStepId === step.id ? 'guidePulse 2.4s ease-in-out infinite' : 'none',
             }}>
               <span style={{
                 width: 7,
@@ -729,7 +790,7 @@ export default function App() {
               <span style={{ color: C.text3, fontWeight: 500, letterSpacing: 0 }}>{step.hint}</span>
             </button>
           ))}
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: C.text3, maxWidth: '52%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className="workflow-summary" style={{ marginLeft: 'auto', fontSize: 12, color: C.text3, maxWidth: '52%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {selectedPayload ? `${selectedPayload.technique} · ${selectedPayload.owasp || TECHNIQUES[selectedPayload.technique]?.owasp || 'mapped case'}` : 'Select a case'}
             {selectedCaseMapping?.mapped_controls?.length ? ` · ${selectedCaseMapping.mapped_controls.length} mapped controls` : ''}
           </span>
@@ -745,17 +806,17 @@ export default function App() {
 
       {/* ═══ LAB VIEW ════════════════════════════════════════════════════════ */}
       {activeTab === 'lab' && (
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div className="lab-shell" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
           {/* ── LEFT: Config + Payload Library ── */}
-            <div style={{
+            <div className="lab-sidebar" style={{
               width: 360,
-              borderRight: `1px solid ${focusStep === 'case' ? C.amber : C.border}`,
+              borderRight: `1px solid ${guideStep === 'case' ? C.amber : C.border}`,
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
-              background: focusStep === 'case' ? 'rgba(200,120,68,.045)' : 'rgba(10,12,22,.88)',
-              boxShadow: focusStep === 'case' ? 'inset -1px 0 0 rgba(200,120,68,.34)' : 'none',
+              background: guideStep === 'case' ? 'rgba(200,120,68,.045)' : 'rgba(10,12,22,.88)',
+              boxShadow: nextStepId === 'case' ? '0 0 22px rgba(200,120,68,.12)' : guideStep === 'case' ? 'inset -1px 0 0 rgba(200,120,68,.34)' : 'none',
             }}>
 
             {/* Victim config */}
@@ -862,17 +923,17 @@ export default function App() {
           </div>
 
           {/* ── RIGHT: Terminal + Eval ── */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(7,9,18,.52)' }}>
+          <div className="lab-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(7,9,18,.52)' }}>
 
             {/* Payload editor / preview */}
-            <div style={{
+            <div className="payload-panel" style={{
               padding: '12px 16px',
-              borderBottom: `1px solid ${focusStep === 'case' ? C.amber : C.border}`,
+              borderBottom: `1px solid ${guideStep === 'case' ? C.amber : C.border}`,
               flexShrink: 0,
-              background: focusStep === 'case' ? 'rgba(200,120,68,.045)' : 'transparent',
+              background: guideStep === 'case' ? 'rgba(200,120,68,.045)' : 'transparent',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="payload-toolbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div className="payload-actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13, color: C.text2, letterSpacing: 1.5, fontWeight: 700 }}>
                     {useCustom ? 'CUSTOM PAYLOAD' : `PAYLOAD: ${selectedPayload?.name || 'none selected'}`}
                   </span>
@@ -923,12 +984,13 @@ export default function App() {
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '6px 16px', fontSize: 14, fontWeight: 700, letterSpacing: 1.5,
                       background: C.amberBg,
-                      border: `1px solid ${focusStep === 'run' ? C.text1 : C.amber}`,
+                      border: `1px solid ${guideStep === 'run' ? C.text1 : C.amber}`,
                       color: C.amber,
                       cursor: modelStatus !== 'ready' ? 'not-allowed' : 'pointer',
                       opacity: modelStatus !== 'ready' ? 0.4 : 1,
                       borderRadius: 2,
-                      boxShadow: focusStep === 'run' ? '0 0 0 2px rgba(200,120,68,.24)' : 'none',
+                      boxShadow: nextStepId === 'run' ? '0 0 20px rgba(200,120,68,.22)' : guideStep === 'run' ? '0 0 0 2px rgba(200,120,68,.24)' : 'none',
+                      animation: nextStepId === 'run' ? 'guidePulse 2.4s ease-in-out infinite' : 'none',
                     }}
                   >
                     {running ? <><Square size={10} /> STOP</> : <><Play size={10} /> EXECUTE</>}
@@ -963,7 +1025,7 @@ export default function App() {
                     </div>
                   )}
                   {advancedMode && (
-                    <div style={{
+                    <div className="case-detail-grid" style={{
                       marginTop: 8,
                       display: 'grid',
                       gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
@@ -1049,6 +1111,8 @@ export default function App() {
                         opacity: judging || (judgeMode && !judgeResult) ? 0.45 : 1,
                         borderRadius: 2, flexShrink: 0,
                         display: 'flex', alignItems: 'center', gap: 6,
+                        boxShadow: nextStepId === 'review' ? '0 0 20px rgba(200,120,68,.22)' : 'none',
+                        animation: nextStepId === 'review' ? 'guidePulse 2.4s ease-in-out infinite' : 'none',
                       }}
                     >
                       <Plus size={13} />
@@ -1056,7 +1120,7 @@ export default function App() {
                     </button>
                   </div>
                   {(advancedMode || judgeMode) && (
-                  <div style={{ display: 'flex', gap: 10 }}>
+                  <div className="eval-detail-row" style={{ display: 'flex', gap: 10 }}>
                   {/* Heuristic result */}
                   <div style={{
                     flex: 1, padding: '10px 12px',
