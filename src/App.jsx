@@ -694,7 +694,7 @@ export default function App() {
     abortRef.current = false;
     try {
       if (judgeModelId !== loadedModelId) {
-        setBatchJudgeStatus({ index: 0, total: newFindings.length, name: 'Loading judge model…', judgeText: '', isLoadingModel: true });
+        setBatchJudgeStatus({ index: 0, total: newFindings.length, name: 'Loading judge model…', judgeText: '', isLoadingModel: true, probeResponse: newFindings[0]?.responseFull || newFindings[0]?.response || '', probePayload: newFindings[0]?.payload || '' });
         await engineRef.current.reload(judgeModelId, { initProgressCallback: (p) => setBatchJudgeStatus(s => ({ ...s, name: p.text })) });
       }
       const trunc = (s, n) => s.length > n ? s.slice(0, n) + '\n[truncated]' : s;
