@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronRight } from 'lucide-react';
 import { getVerdictColor, getVerdictLabel } from './VerdictBanner';
 import { getMitigationMapping } from '../data/mitigationMappings';
 import { CONTROL_SET } from '../data/frameworkMappings';
@@ -13,12 +13,6 @@ const dispositionHelp = {
   FALSE_POSITIVE: 'Heuristic was wrong; mark as noise',
   ACCEPTED_RISK: 'Documented and accepted as-is',
 };
-
-const reviewStatusLabel = (status = '') => String(status)
-  .replace('REVIEW_REQUIRED', 'REVIEW REQUIRED')
-  .replace('NEEDS_REVIEW', 'NEEDS REVIEW')
-  .replace('AUTO_TRIAGED', 'AUTO TRIAGED')
-  .replaceAll('_', ' ');
 
 const effectivenessOptions = [
   { value: 'ABSENT', label: 'ABSENT', help: 'Control does not exist or was never implemented', colorKey: 'red' },
@@ -51,7 +45,7 @@ const draftGapStatement = (finding, effectiveness) => {
 
 export default function FindingCard({ C, finding: f, auditorView, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false);
-  const [frameworkOpen, setFrameworkOpen] = useState(false);
+  const [tab, setTab] = useState('evidence');
   const vc = getVerdictColor(f.verdict, C);
   const reviewerDecision = f.reviewerDecision || 'UNREVIEWED';
   const mitigation = getMitigationMapping(f.techniqueId);
@@ -67,114 +61,152 @@ export default function FindingCard({ C, finding: f, auditorView, onUpdate, onDe
     reviewerReviewedAt: new Date().toISOString(),
   });
 
+  const decisionColor = reviewerDecision === 'CONFIRMED' ? C.red : reviewerDecision === 'FALSE_POSITIVE' ? C.green : reviewerDecision === 'UNREVIEWED' ? C.amber : C.text2;
+  const auditReady = Boolean(assessedEffectiveness && f.controlGapStatement);
+  const hasRemediation = officialMitigations.length > 0 || recommendedMitigations.length > 0 || retestGuidance.length > 0;
+  const tabs = [
+    ['evidence', 'Evidence'],
+    ['control', 'Control Impact'],
+    hasRemediation && ['remediation', 'Remediation'],
+    ['details', 'Details'],
+  ].filter(Boolean);
+
   return (
-    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${vc}`, borderRadius: 3, animation: 'fadeUp .2s ease' }}>
-      <div style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10 }} onClick={() => setExpanded(p => !p)}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, color: vc, fontWeight: 700 }}>{getVerdictLabel(f.verdict)}</span>
-            <span style={{ fontSize: 12, color: C.text2, background: C.hover, padding: '1px 6px', borderRadius: 2, border: `1px solid ${C.border}` }}>{f.techniqueId}</span>
-            {f.owasp && <span style={{ fontSize: 12, color: C.text2, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{f.owasp}</span>}
-            {f.reviewStatus && f.reviewStatus !== 'AUTO_TRIAGED' && <span style={{ fontSize: 12, color: f.reviewStatus === 'REVIEW_REQUIRED' ? C.amber : C.warmDim, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{reviewStatusLabel(f.reviewStatus)}</span>}
-            <span style={{ fontSize: 12, color: reviewerDecision === 'CONFIRMED' ? C.red : reviewerDecision === 'FALSE_POSITIVE' ? C.green : C.text2, padding: '1px 6px', background: C.hover, borderRadius: 2 }}>{reviewerDecision.replaceAll('_', ' ')}</span>
-            <span style={{ fontSize: 12, color: effectivenessColor, padding: '1px 6px', background: C.hover, border: `1px solid ${effectivenessColor}55`, borderRadius: 2 }}>{effectiveness.replaceAll('_', ' ')}</span>
-            <span style={{ fontSize: 13, color: C.text3, marginLeft: 'auto' }}>{new Date(f.timestamp).toLocaleString()}</span>
+    <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderLeft: `3px solid ${vc}`, borderRadius: 4, animation: 'fadeUp .2s ease' }}>
+      {/* Summary row */}
+      <div style={{ padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }} onClick={() => setExpanded(p => !p)}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: vc, fontWeight: 800, letterSpacing: .5 }}>{getVerdictLabel(f.verdict)}</span>
+            <span style={{ fontSize: 11, color: C.text3, fontFamily: C.mono, padding: '1px 6px', background: C.bg, borderRadius: 2, border: `1px solid ${C.border}` }}>{f.techniqueId}</span>
+            {f.owasp && <span style={{ fontSize: 11, color: C.text3, fontFamily: C.mono, padding: '1px 6px', background: C.bg, borderRadius: 2, border: `1px solid ${C.border}` }}>{f.owasp}</span>}
+            <span style={{ fontSize: 13, color: C.text3, marginLeft: 'auto', whiteSpace: 'nowrap' }}>{new Date(f.timestamp).toLocaleDateString()}</span>
           </div>
-          <div style={{ fontSize: 15, color: C.text1, fontWeight: 600, marginBottom: 3 }}>{f.payloadName}</div>
-          <div style={{ fontSize: 14, color: C.text2 }}>{f.victimModel?.split('-q')[0]}{f.analyst ? ` · ${f.analyst}` : ''}</div>
+          <div style={{ fontSize: 16, color: C.text1, fontWeight: 600, marginBottom: 6 }}>{f.payloadName}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+            <StatusChip C={C} color={decisionColor} label={reviewerDecision.replaceAll('_', ' ')} />
+            <StatusChip C={C} color={assessedEffectiveness ? effectivenessColor : C.text3} label={assessedEffectiveness ? effectiveness.replaceAll('_', ' ') : 'NOT ASSESSED'} outline />
+            <StatusChip C={C} color={auditReady ? C.teal : C.amber} label={auditReady ? 'AUDIT-READY' : 'NEEDS REVIEW'} dot />
+          </div>
         </div>
-        <div style={{ color: C.text3, flexShrink: 0 }}>{expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</div>
+        <button style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: expanded ? C.surface : 'transparent', border: `1px solid ${C.borderHi}`, color: C.text2, fontSize: 12, fontWeight: 700, letterSpacing: .8, borderRadius: 3, cursor: 'pointer' }}>
+          {expanded ? <>CLOSE <ChevronUp size={13} /></> : <>REVIEW <ChevronRight size={13} /></>}
+        </button>
       </div>
 
       {expanded && (
-        <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {auditorView && (
-            <div style={{ background: C.amberBg, border: `1px solid ${C.amber}44`, borderLeft: `3px solid ${C.amber}`, borderRadius: 3, padding: '10px 12px' }}>
-              <div style={{ fontSize: 13, color: C.amber, letterSpacing: 1, fontWeight: 800, marginBottom: 6 }}>AUDITOR VIEW</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 8 }}>
-                <Mini C={C} label="System" value={f.systemUnderTest || 'Not recorded'} />
-                <Mini C={C} label="Prompt hash" value={f.promptHash || 'Not recorded'} />
-                <Mini C={C} label="Control" value={(f.selectedControlIds || f.mappedControls || []).join(', ') || 'Not recorded'} />
-                <Mini C={C} label="Effectiveness" value={effectiveness.replaceAll('_', ' ')} />
+        <div style={{ borderTop: `1px solid ${C.border}` }}>
+          {/* Persistent review-action area */}
+          <div style={{ padding: '14px 16px', background: C.bg, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 200, flex: '0 1 240px' }}>
+                <FieldLabel C={C}>Reviewer decision</FieldLabel>
+                <select value={reviewerDecision} onChange={e => onUpdate({ reviewerDecision: e.target.value, reviewerReviewedAt: new Date().toISOString() })}
+                  style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 14, padding: '7px 9px', borderRadius: 3, fontFamily: C.sans }}>
+                  <option value="UNREVIEWED">Unreviewed</option>
+                  <option value="CONFIRMED">Confirm finding</option>
+                  <option value="MITIGATED">Mitigated</option>
+                  <option value="NEEDS_RETEST">Needs retest</option>
+                  <option value="FALSE_POSITIVE">False positive</option>
+                  <option value="ACCEPTED_RISK">Accept risk</option>
+                </select>
+                <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.4, marginTop: 5 }}>{dispositionHelp[reviewerDecision]}</div>
               </div>
-              <Block C={C} label="CONTROL GAP STATEMENT" bright>{f.controlGapStatement || 'Control gap statement not completed — finding is not audit-ready.'}</Block>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 220, flex: '0 1 280px' }}>
-              <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>REVIEWER DECISION</div>
-              <select value={reviewerDecision} onChange={e => onUpdate({ reviewerDecision: e.target.value, reviewerReviewedAt: new Date().toISOString() })}
-                style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 14, padding: '5px 8px', borderRadius: 2 }}>
-                <option value="UNREVIEWED">Unreviewed</option>
-                <option value="CONFIRMED">Confirm finding</option>
-                <option value="MITIGATED">Mitigated</option>
-                <option value="NEEDS_RETEST">Needs retest</option>
-                <option value="FALSE_POSITIVE">False positive</option>
-                <option value="ACCEPTED_RISK">Accept risk</option>
-              </select>
-              <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.4, marginTop: 5 }}>{dispositionHelp[reviewerDecision]}</div>
-            </div>
-            <div style={{ flex: '1 1 360px' }}>
-              <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>EFFECTIVENESS ASSESSMENT</div>
-              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                {effectivenessOptions.map(option => {
-                  const color = C[option.colorKey] || C.amber;
-                  const active = assessedEffectiveness === option.value;
-                  return (
-                    <button key={option.value} onClick={() => updateEffectiveness(option.value)} title={option.help} style={{
-                      background: active ? `${color}22` : C.bg,
-                      border: `1px solid ${active ? color : C.borderHi}`,
-                      color,
-                      borderRadius: 3,
-                      padding: '6px 9px',
-                      cursor: 'pointer',
-                      fontSize: 11,
-                      fontWeight: 900,
-                      letterSpacing: 1,
-                    }}>
-                      {option.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.4, marginTop: 5 }}>
-                Required before this finding is audit-ready.
+              <div style={{ flex: '1 1 320px' }}>
+                <FieldLabel C={C}>Effectiveness assessment</FieldLabel>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                  {effectivenessOptions.map(option => {
+                    const color = C[option.colorKey] || C.amber;
+                    const active = assessedEffectiveness === option.value;
+                    return (
+                      <button key={option.value} onClick={() => updateEffectiveness(option.value)} title={option.help} style={{
+                        background: active ? `${color}22` : C.surface,
+                        border: `1px solid ${active ? color : C.borderHi}`,
+                        color: active ? color : C.text2,
+                        borderRadius: 3, padding: '7px 11px', cursor: 'pointer',
+                        fontSize: 11, fontWeight: 800, letterSpacing: 1, fontFamily: C.mono,
+                      }}>
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize: 12, color: C.text3, lineHeight: 1.4, marginTop: 5 }}>Required before this finding is audit-ready.</div>
               </div>
             </div>
+
+            <div>
+              <FieldLabel C={C}>Control gap statement</FieldLabel>
+              <textarea
+                value={f.controlGapStatement || ''}
+                onChange={e => onUpdate({ controlGapStatement: e.target.value })}
+                placeholder="Select an effectiveness assessment to draft the governance translation."
+                rows={3}
+                style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 13, padding: '8px 10px', lineHeight: 1.55, resize: 'vertical', borderRadius: 3, fontFamily: C.sans }}
+              />
+            </div>
+
+            <div>
+              <FieldLabel C={C}>Reviewer notes</FieldLabel>
+              <textarea value={f.reviewerNotes || ''} onChange={e => onUpdate({ reviewerNotes: e.target.value, notes: e.target.value })}
+                placeholder="Add reviewer rationale, retest result, or disposition…" rows={2}
+                style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 13, padding: '8px 10px', lineHeight: 1.5, resize: 'vertical', borderRadius: 3, fontFamily: C.sans }} />
+            </div>
           </div>
 
-          <div style={{ background: C.surface, border: `1px solid ${C.borderHi}`, borderRadius: 3, padding: '9px 10px' }}>
-            <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>CONTROL GAP STATEMENT</div>
-            <textarea
-              value={f.controlGapStatement || ''}
-              onChange={e => onUpdate({ controlGapStatement: e.target.value })}
-              placeholder="Select an effectiveness assessment to draft the governance translation."
-              rows={3}
-              style={{ width: '100%', background: C.bg, border: `1px solid ${C.border}`, color: C.text1, fontSize: 13, padding: '7px 8px', lineHeight: 1.5, resize: 'vertical', borderRadius: 2 }}
-            />
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 2, padding: '0 12px', borderBottom: `1px solid ${C.border}`, background: C.panel }}>
+            {tabs.map(([id, label]) => (
+              <button key={id} onClick={() => setTab(id)} style={{
+                padding: '10px 14px', background: 'transparent', border: 'none', cursor: 'pointer',
+                color: tab === id ? C.text1 : C.text3, fontSize: 12.5, fontWeight: tab === id ? 700 : 500,
+                borderBottom: `2px solid ${tab === id ? C.amber : 'transparent'}`, marginBottom: -1,
+              }}>
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div>
-            <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>REVIEWER NOTES</div>
-            <textarea value={f.reviewerNotes || ''} onChange={e => onUpdate({ reviewerNotes: e.target.value, notes: e.target.value })}
-              placeholder="Add reviewer rationale, retest result, or disposition…" rows={2}
-              style={{ width: '100%', background: C.surface, border: `1px solid ${C.borderHi}`, color: C.text1, fontSize: 14, padding: '6px 8px', lineHeight: 1.45, resize: 'vertical', borderRadius: 2 }} />
-          </div>
+          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {tab === 'evidence' && (
+              <>
+                <Block C={C} label="PAYLOAD" mono>{f.payload}</Block>
+                <Block C={C} label="RESPONSE EXCERPT" mono bright>{f.response}</Block>
+                {f.evaluationDisagreement && (
+                  <div style={{ background: C.amberBg, border: `1px solid ${C.amber}40`, padding: '9px 11px', borderRadius: 3 }}>
+                    <div style={{ fontSize: 12, color: C.amber, letterSpacing: 1, marginBottom: 4, fontWeight: 800 }}>EVALUATORS DISAGREE</div>
+                    <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.45 }}>{f.evaluationNote}</div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 240px' }}>
+                    <FieldLabel C={C}>Heuristic{f.heuristicVerdict ? ` · ${getVerdictLabel(f.heuristicVerdict)}` : ''}</FieldLabel>
+                    <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.5 }}>{f.evalReason}</div>
+                  </div>
+                  {f.judgeReason && (
+                    <div style={{ flex: '1 1 240px' }}>
+                      <FieldLabel C={C}>LLM judge{f.judgeVerdict ? ` · ${getVerdictLabel(f.judgeVerdict)}` : ''}</FieldLabel>
+                      <div style={{ fontSize: 13, color: C.text2, lineHeight: 1.5 }}>{f.judgeReason}</div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {f.caseFileId && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>CASE {f.caseFileId}</span>}
-            {f.runId && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>RUN {f.runId}</span>}
-            {f.reviewerReviewedAt && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '2px 6px', borderRadius: 2 }}>REVIEWED {new Date(f.reviewerReviewedAt).toLocaleString()}</span>}
-          </div>
-
-          <div style={{ border: `1px solid ${C.border}`, background: C.bg, borderRadius: 2 }}>
-            <button onClick={() => setFrameworkOpen(p => !p)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 9px', background: 'transparent', border: 'none', color: C.text2, fontSize: 13, fontWeight: 700, letterSpacing: .6, cursor: 'pointer' }}>
-              <span>Framework & compliance mapping · {f.techniqueId}{f.owasp ? ` · ${f.owasp}` : ''}</span>
-              {frameworkOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-            {frameworkOpen && (
-              <div style={{ padding: '0 9px 9px' }}>
+            {tab === 'control' && (
+              <>
+                {auditorView && (
+                  <div style={{ background: C.amberBg, border: `1px solid ${C.amber}44`, borderLeft: `3px solid ${C.amber}`, borderRadius: 3, padding: '11px 13px' }}>
+                    <div style={{ fontSize: 12, color: C.amber, letterSpacing: 1, fontWeight: 800, marginBottom: 8 }}>AUDITOR VIEW</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8, marginBottom: 8 }}>
+                      <Mini C={C} label="System" value={f.systemUnderTest || 'Not recorded'} />
+                      <Mini C={C} label="Prompt hash" value={f.promptHash || 'Not recorded'} />
+                      <Mini C={C} label="Control" value={(f.selectedControlIds || f.mappedControls || []).join(', ') || 'Not recorded'} />
+                      <Mini C={C} label="Effectiveness" value={effectiveness.replaceAll('_', ' ')} />
+                    </div>
+                    <Block C={C} label="CONTROL GAP STATEMENT" bright>{f.controlGapStatement || 'Control gap statement not completed — finding is not audit-ready.'}</Block>
+                  </div>
+                )}
                 <FrameworkMappingExplainer
                   C={C}
                   techniqueId={f.techniqueId}
@@ -182,52 +214,65 @@ export default function FindingCard({ C, finding: f, auditorView, onUpdate, onDe
                   owasp={f.owasp}
                   finding={f}
                 />
-              </div>
+                {f.readinessGaps?.length > 0 && <ListBlock C={C} label="READINESS GAPS" items={f.readinessGaps} />}
+              </>
+            )}
+
+            {tab === 'remediation' && (
+              <>
+                {officialMitigations.length > 0 && <ListBlock C={C} label="OFFICIAL MITIGATION REFERENCES" items={officialMitigations.map(i => `${i.source}: ${i.id} — ${i.name}`)} />}
+                {recommendedMitigations.length > 0 && <ListBlock C={C} label="ELICIT RECOMMENDED ACTIONS" items={recommendedMitigations} />}
+                {retestGuidance.length > 0 && <ListBlock C={C} label="RETEST GUIDANCE" items={retestGuidance} />}
+              </>
+            )}
+
+            {tab === 'details' && (
+              <>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {f.caseFileId && <span style={{ fontSize: 12, color: C.text3, fontFamily: C.mono, background: C.bg, border: `1px solid ${C.border}`, padding: '3px 7px', borderRadius: 2 }}>CASE {f.caseFileId}</span>}
+                  {f.runId && <span style={{ fontSize: 12, color: C.text3, fontFamily: C.mono, background: C.bg, border: `1px solid ${C.border}`, padding: '3px 7px', borderRadius: 2 }}>RUN {f.runId}</span>}
+                  {f.reviewerReviewedAt && <span style={{ fontSize: 12, color: C.text3, background: C.bg, border: `1px solid ${C.border}`, padding: '3px 7px', borderRadius: 2 }}>REVIEWED {new Date(f.reviewerReviewedAt).toLocaleString()}</span>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8 }}>
+                  <Mini C={C} label="Model" value={f.victimModel?.split('-q')[0] || 'Not recorded'} />
+                  {f.analyst && <Mini C={C} label="Analyst" value={f.analyst} />}
+                  <Mini C={C} label="Logged" value={new Date(f.timestamp).toLocaleString()} />
+                </div>
+                <button onClick={onDelete} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'transparent', border: `1px solid ${C.red}44`, color: C.red, fontSize: 12, cursor: 'pointer', letterSpacing: 1, borderRadius: 3, fontWeight: 700 }}>
+                  <Trash2 size={11} /> DELETE FINDING
+                </button>
+              </>
             )}
           </div>
-
-          <Block C={C} label="PAYLOAD" mono>{f.payload}</Block>
-          <Block C={C} label="RESPONSE EXCERPT" mono bright>{f.response}</Block>
-          {f.readinessGaps?.length > 0 && <ListBlock C={C} label="READINESS GAPS" items={f.readinessGaps} />}
-          {officialMitigations.length > 0 && <ListBlock C={C} label="OFFICIAL MITIGATION REFERENCES" items={officialMitigations.map(i => `${i.source}: ${i.id} — ${i.name}`)} />}
-          {recommendedMitigations.length > 0 && <ListBlock C={C} label="ELICIT RECOMMENDED ACTIONS" items={recommendedMitigations} />}
-          {retestGuidance.length > 0 && <ListBlock C={C} label="RETEST GUIDANCE" items={retestGuidance} />}
-
-          {f.evaluationDisagreement && (
-            <div style={{ background: C.amberBg, border: `1px solid ${C.amber}40`, padding: '8px 10px', borderRadius: 2 }}>
-              <div style={{ fontSize: 13, color: C.amber, letterSpacing: 1, marginBottom: 4, fontWeight: 700 }}>EVALUATION DISAGREEMENT</div>
-              <div style={{ fontSize: 14, color: C.text2, lineHeight: 1.45 }}>{f.evaluationNote}</div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>HEURISTIC</div>
-              {(f.heuristicLabel || f.heuristicVerdict) && <div style={{ fontSize: 12, color: C.text2, marginBottom: 3 }}>{f.heuristicVerdict ? getVerdictLabel(f.heuristicVerdict) : 'HEURISTIC'}{f.heuristicLabel ? ` · ${f.heuristicLabel}` : ''}</div>}
-              <div style={{ fontSize: 14, color: C.text2 }}>{f.evalReason}</div>
-            </div>
-            {f.judgeReason && (
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>LLM JUDGE {f.judgeVerdict && `(${getVerdictLabel(f.judgeVerdict)})`}</div>
-                <div style={{ fontSize: 14, color: C.text2 }}>{f.judgeReason}</div>
-              </div>
-            )}
-          </div>
-
-          <button onClick={onDelete} style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'transparent', border: `1px solid ${C.border}`, color: C.text3, fontSize: 13, cursor: 'pointer', letterSpacing: 1, borderRadius: 2 }}>
-            <Trash2 size={9} /> DELETE
-          </button>
         </div>
       )}
     </div>
   );
 }
 
+function StatusChip({ C, color, label, outline, dot }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color,
+      background: outline ? 'transparent' : `${color}1A`,
+      border: `1px solid ${color}${outline ? '55' : '33'}`,
+      padding: '2px 8px', borderRadius: 3, fontWeight: 700, letterSpacing: .5,
+    }}>
+      {dot && <span style={{ width: 5, height: 5, borderRadius: 999, background: color }} />}
+      {label}
+    </span>
+  );
+}
+
+function FieldLabel({ C, children }) {
+  return <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{children}</div>;
+}
+
 function Block({ C, label, children, mono, bright }) {
   return (
     <div>
-      <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 15, color: bright ? C.text1 : C.text2, background: C.bg, padding: '8px 10px', lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: mono ? C.mono : 'inherit' }}>{children}</div>
+      <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: mono ? 13 : 14, color: bright ? C.text1 : C.text2, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '9px 11px', lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: mono ? C.mono : C.sans }}>{children}</div>
     </div>
   );
 }
@@ -235,9 +280,9 @@ function Block({ C, label, children, mono, bright }) {
 function ListBlock({ C, label, items }) {
   return (
     <div>
-      <div style={{ fontSize: 13, color: C.text3, letterSpacing: 1, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 14, color: C.text2, background: C.bg, padding: '8px 10px', lineHeight: 1.55 }}>
-        {items.map((item, idx) => <div key={idx}>- {item}</div>)}
+      <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 13.5, color: C.text2, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '9px 11px', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {items.map((item, idx) => <div key={idx} style={{ display: 'flex', gap: 7 }}><span style={{ color: C.text3 }}>·</span><span>{item}</span></div>)}
       </div>
     </div>
   );
@@ -245,9 +290,9 @@ function ListBlock({ C, label, items }) {
 
 function Mini({ C, label, value }) {
   return (
-    <div style={{ background: C.bg, border: `1px solid ${C.border}`, padding: '7px 8px', borderRadius: 2 }}>
-      <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1, marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 12, color: C.text1, lineHeight: 1.4 }}>{value}</div>
+    <div style={{ background: C.bg, border: `1px solid ${C.border}`, padding: '8px 9px', borderRadius: 3 }}>
+      <div style={{ fontSize: 10, color: C.text3, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 12.5, color: C.text1, lineHeight: 1.4, wordBreak: 'break-word' }}>{value}</div>
     </div>
   );
 }
