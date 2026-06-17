@@ -656,7 +656,7 @@ export default function App() {
       const cl = CLUSTERS.find(c => c.id === cId);
       const p = cl?.payloads.find(px => px.id === probeId);
       if (!cl || !p) continue;
-      setBatchStatus({ index: i, total: queue.length, probeName: p.name, response: '' });
+      setBatchStatus({ index: i, total: queue.length, probeName: p.name, response: '', payload: p.payload || '' });
       let full = '';
       try {
         const stream = await engineRef.current.chat.completions.create({
@@ -1593,48 +1593,65 @@ function BatchJudgeRunner({ C, status, onStop }) {
 }
 
 function BatchRunner({ C, status, onStop }) {
-  const { index, total, probeName, response } = status;
+  const { index, total, probeName, response, payload } = status;
   const pct = Math.round(((index) / total) * 100);
   return (
-    <div style={{ flex: 1, padding: '32px 28px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 6 }}>Batch Running</div>
-          <div style={{ fontSize: 18, color: C.text1, fontWeight: 700 }}>
-            {index + 1} <span style={{ color: C.text3, fontWeight: 400 }}>/ {total}</span>
+    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {/* Header controls */}
+      <div style={{ padding: '24px 28px 20px', display: 'flex', flexDirection: 'column', gap: 16, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 6 }}>Batch Running</div>
+            <div style={{ fontSize: 18, color: C.text1, fontWeight: 700 }}>
+              {index + 1} <span style={{ color: C.text3, fontWeight: 400 }}>/ {total}</span>
+            </div>
           </div>
+          <button onClick={onStop} style={{
+            padding: '8px 14px', background: C.redBg, border: `1px solid ${C.red}55`,
+            color: C.red, fontSize: 12, fontWeight: 700, letterSpacing: 1, borderRadius: 3, cursor: 'pointer',
+          }}>STOP</button>
         </div>
-        <button onClick={onStop} style={{
-          padding: '8px 14px', background: C.redBg, border: `1px solid ${C.red}55`,
-          color: C.red, fontSize: 12, fontWeight: 700, letterSpacing: 1, borderRadius: 3, cursor: 'pointer',
-        }}>STOP</button>
-      </div>
 
-      <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: C.teal, borderRadius: 2, transition: 'width .3s ease' }} />
-      </div>
+        <div style={{ height: 4, background: C.border, borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: C.teal, borderRadius: 2, transition: 'width .3s ease' }} />
+        </div>
 
-      <div style={{ padding: '10px 14px', background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4 }}>
-        <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, marginBottom: 6 }}>CURRENT PROBE</div>
-        <div style={{ fontSize: 14, color: C.amber, fontWeight: 600 }}>{probeName}</div>
-      </div>
+        <div style={{ padding: '10px 14px', background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4 }}>
+          <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, marginBottom: 6 }}>CURRENT PROBE</div>
+          <div style={{ fontSize: 14, color: C.amber, fontWeight: 600 }}>{probeName}</div>
+        </div>
 
-      {response ? (
-        <div style={{ flex: 1, padding: '14px 16px', background: C.surface, border: `1px solid ${C.teal}44`, borderRadius: 4, overflowY: 'auto' }}>
-          <div style={{ fontSize: 11, color: C.teal, letterSpacing: 1.2, marginBottom: 8 }}>MODEL RESPONSE</div>
-          <div style={{ fontSize: 13, color: C.text1, fontFamily: C.mono, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {response}
+        {response ? (
+          <div style={{ padding: '14px 16px', background: C.surface, border: `1px solid ${C.teal}44`, borderRadius: 4 }}>
+            <div style={{ fontSize: 11, color: C.teal, letterSpacing: 1.2, marginBottom: 8 }}>MODEL RESPONSE</div>
+            <div style={{ fontSize: 13, color: C.text1, fontFamily: C.mono, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {response}
+            </div>
           </div>
-        </div>
-      ) : (
-        <div style={{ padding: '18px 16px', background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, color: C.text3, fontSize: 13 }}>
-          Sending probe…
+        ) : (
+          <div style={{ padding: '12px 16px', background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, color: C.text3, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 999, background: C.teal, animation: 'pulse 1.2s ease-in-out infinite' }} />
+            Sending probe…
+          </div>
+        )}
+      </div>
+
+      {/* Payload — readable while model responds */}
+      {payload && (
+        <div style={{ flex: 1, margin: '0 28px 24px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
+            ATTACK PAYLOAD
+          </div>
+          <div style={{ flex: 1, padding: '12px 14px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 4, overflowY: 'auto', minHeight: 80 }}>
+            <div style={{ fontSize: 13, color: C.text2, fontFamily: C.mono, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {payload}
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: C.text3, marginTop: 10 }}>
+            Findings are auto-saved as each probe completes. Review them in the report when the batch finishes.
+          </div>
         </div>
       )}
-
-      <div style={{ fontSize: 12, color: C.text3 }}>
-        Findings are auto-saved as each probe completes. Review them in the report when the batch finishes.
-      </div>
     </div>
   );
 }
