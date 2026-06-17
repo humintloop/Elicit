@@ -742,17 +742,7 @@ export default function App() {
         {stage === STAGE.CASE && (
           <CaseSetup
             C={C}
-            analyst={analyst} setAnalyst={setAnalyst}
-            caseId={caseId}
-            setCaseId={setCaseId}
-            systemUnderTest={systemUnderTest}
-            setSystemUnderTest={setSystemUnderTest}
             promptHash={promptHash}
-            selectedControlIds={selectedControlIds}
-            setSelectedControlIds={setSelectedControlIds}
-            runPreset={runPreset}
-            runPresets={RUN_PRESETS}
-            applyRunPreset={applyRunPreset}
             hardwareProfile={hardwareProfile}
             applyHardwareRecommendation={applyHardwareRecommendation}
             victimModelId={victimModelId} setVictimModelId={setVictimModelId}
@@ -934,250 +924,145 @@ function GlobalStyle({ C }) {
       }
       @media (max-width: 480px) {
         .header-nav-buttons .hide-mobile { display: none !important; }
+        .model-judge-row { grid-template-columns: 1fr !important; }
       }
     `}</style>
   );
 }
 
-// ═══ STAGE 1 · Case setup ═════════════════════════════════════════════════════
+// ═══ STAGE 1 · Begin assessment ═══════════════════════════════════════════════
 function CaseSetup({
-  C, analyst, setAnalyst, caseId, victimModelId, setVictimModelId, victimModels,
+  C, victimModelId, setVictimModelId, victimModels,
   presetId, setPresetId, victimPrompt, setVictimPrompt, clusterId, setClusterId, clusters,
   judgeMode, setJudgeMode, judgeModelId, setJudgeModelId, judgeModels, onOpen, modelStatus, findingsCount, onReport,
-  setCaseId, systemUnderTest, setSystemUnderTest, promptHash, selectedControlIds, setSelectedControlIds,
-  runPreset, runPresets, applyRunPreset, hardwareProfile, applyHardwareRecommendation,
+  promptHash, hardwareProfile, applyHardwareRecommendation,
 }) {
   const model = victimModels.find(m => m.id === victimModelId);
-  const ready = analyst.trim() && caseId.trim() && systemUnderTest.trim() && clusterId && victimPrompt.trim();
-  const controlOptions = Object.values(CONTROL_SET);
-  const selectedCluster = clusters.find(cl => cl.id === clusterId) || clusters[0];
-  const autoControlIds = buildCaseMapping(selectedCluster?.code || clusterId, selectedCluster?.payloads?.[0] || {}).mapped_controls || [];
-  const effectiveControlIds = selectedControlIds.length ? selectedControlIds : autoControlIds;
+  const ready = clusterId && victimPrompt.trim();
   const hardwareVictim = victimModels.find(m => m.id === hardwareProfile.recommendation?.victimModelId);
-  const hardwareJudge = judgeModels.find(m => m.id === hardwareProfile.recommendation?.judgeModelId);
-  const [modelOverrideOpen, setModelOverrideOpen] = useState(false);
-  const [controlOverrideOpen, setControlOverrideOpen] = useState(false);
-  const modelGroups = [
-    ['LIGHTWEIGHT', 'Start here', victimModels.filter(m => m.id.includes('TinyLlama'))],
-    ['MID-RANGE', 'Balanced local testing', victimModels.filter(m => ['gemma-2-2b', 'Phi-3.5', 'Llama-3.2-3B'].some(id => m.id.includes(id)))],
-    ['HEAVY', 'Higher capability, more VRAM', victimModels.filter(m => ['Llama-3.1-8B', 'Mistral-7B', 'gemma-2-9b', 'Qwen2.5-7B'].some(id => m.id.includes(id)))],
-  ];
-  const toggleControl = (id) => {
-    setSelectedControlIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
 
-  const sectionLabel = (n, t, complete) => (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
-      <span style={{ fontSize: 12, color: complete ? C.teal : C.amber, fontWeight: 800, letterSpacing: 1 }}>{complete ? '✓' : n}</span>
-      <span style={{ fontSize: 13, color: complete ? C.text1 : C.text2, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>{t}</span>
-    </div>
+  const label = (t) => (
+    <div style={{ fontSize: 11, color: C.text3, fontWeight: 800, letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
   );
 
   return (
-    <div className="es-card" style={{ maxWidth: 720, width: '100%', margin: '0 auto', padding: '40px 24px 64px' }}>
-      <div style={{ marginBottom: 36 }}>
-        <div style={{ fontSize: 10, color: C.text3, letterSpacing: 2.4, textTransform: 'uppercase' }}>Open investigation</div>
-        <div style={{ fontSize: 26, color: C.text1, fontWeight: 800, marginTop: 8, letterSpacing: .5 }}>Case File</div>
-        <div style={{ fontSize: 12, color: C.amber, marginTop: 6, letterSpacing: 1 }}>Audit evidence framing before probing</div>
+    <div className="es-card" style={{ maxWidth: 760, width: '100%', margin: '0 auto', padding: '36px 24px 64px' }}>
+
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ fontSize: 28, color: C.text1, fontWeight: 900, letterSpacing: .5 }}>Begin Assessment</div>
+        <div style={{ fontSize: 13, color: C.text3, marginTop: 6 }}>Pick your target, technique, and model — then start probing.</div>
       </div>
 
-      {/* 1 · Analyst */}
-      <div style={{ marginBottom: 30 }}>
-        {sectionLabel('01', 'Analyst', Boolean(analyst.trim()))}
-        <input value={analyst} onChange={e => setAnalyst(e.target.value)} placeholder="Your analyst ID or initials"
-          style={inputStyle(C)} />
-      </div>
-
-      <div style={{ marginBottom: 30 }}>
-        {sectionLabel('02', 'Case ID', Boolean(caseId.trim()))}
-        <input value={caseId} onChange={e => setCaseId(e.target.value)} placeholder="AI-GZ9G3B" style={inputStyle(C)} />
-      </div>
-
-      <div style={{ marginBottom: 30 }}>
-        {sectionLabel('03', 'System under test', Boolean(systemUnderTest.trim()))}
-        <input value={systemUnderTest} onChange={e => setSystemUnderTest(e.target.value)} placeholder="Name, version, environment (dev/staging/prod)" style={inputStyle(C)} />
-      </div>
-
-      <div style={{ marginBottom: 30 }}>
-        {sectionLabel('04', 'Run preset', Boolean(runPreset))}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
-          {runPresets.map(preset => {
-            const active = runPreset === preset.id;
-            return (
-              <button key={preset.id} onClick={() => applyRunPreset(preset.id)} style={{ textAlign: 'left', background: active ? C.amberBg : C.surface, border: `1px solid ${active ? C.amber : C.border}`, borderLeft: `3px solid ${active ? C.amber : C.border}`, borderRadius: 4, padding: '10px 11px', cursor: 'pointer' }}>
-                <div style={{ fontSize: 13, color: active ? C.amber : C.text1, fontWeight: 900 }}>{preset.name}</div>
-                <div style={{ fontSize: 11, color: C.text2, marginTop: 4, lineHeight: 1.4 }}>{preset.summary}</div>
-                <div style={{ fontSize: 10, color: C.text3, marginTop: 7 }}>{preset.target} · {preset.bestFor}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 30, background: C.surface, border: `1px solid ${C.borderHi}`, borderLeft: `3px solid ${hardwareProfile.status === 'ready' ? C.teal : C.amber}`, borderRadius: 4, padding: '12px 14px' }}>
-        <div style={{ fontSize: 11, color: hardwareProfile.status === 'ready' ? C.teal : C.amber, letterSpacing: 1.2, fontWeight: 900, marginBottom: 6 }}>HARDWARE RECOMMENDATION</div>
-        {hardwareProfile.status === 'ready' ? (
-          <>
-            <div style={{ fontSize: 13, color: C.text1, lineHeight: 1.5 }}>
-              Detected: {hardwareProfile.adapter} (~{hardwareProfile.estimatedVramGb.toFixed(1)} GB VRAM estimate)
-            </div>
-            <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, marginTop: 5 }}>
-              Recommended: {hardwareVictim?.name || 'selected victim'} as victim · {hardwareJudge?.name || 'selected judge'} as judge. {hardwareProfile.recommendation?.note}
-            </div>
-            <div style={{ fontSize: 11, color: C.text3, lineHeight: 1.45, marginTop: 8 }}>
-              This is an estimate. A weak judge produces unreliable verdicts, which undermines findings. You can override either selection.
-            </div>
-            <button onClick={applyHardwareRecommendation} style={{ ...btn(C, 'ghost'), marginTop: 10 }}>
-              APPLY RECOMMENDATION
-            </button>
-          </>
-        ) : (
-          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5 }}>
-            {hardwareProfile.note || 'Detecting WebGPU adapter for a model-pair recommendation...'}
-          </div>
-        )}
-        <div style={{ marginTop: 10, fontSize: 11, color: C.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <AlertTriangle size={12} color={C.amberDim} />
-          First load downloads {model?.size || 'the model'} into this browser and runs fully offline after.
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 30 }}>
-        <button onClick={() => setModelOverrideOpen(p => !p)} style={{ ...btn(C, 'ghost'), width: '100%', justifyContent: 'space-between' }}>
-          <span>MODEL OVERRIDE · {model?.name || 'not selected'} · Judge {judgeMode ? 'on' : 'off'}</span>
-          <ChevronRight size={13} style={{ transform: modelOverrideOpen ? 'rotate(90deg)' : 'none' }} />
-        </button>
-        {modelOverrideOpen && (
-          <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 8 }}>
-            {modelGroups.map(([label, detail, models]) => (
-              <div key={label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 4, padding: 10 }}>
-                <div style={{ fontSize: 11, color: label === 'LIGHTWEIGHT' ? C.teal : C.amber, fontWeight: 900, letterSpacing: 1 }}>{label}</div>
-                <div style={{ fontSize: 11, color: C.text3, marginTop: 3 }}>{detail}</div>
-                <div style={{ display: 'grid', gap: 5, marginTop: 9 }}>
-                  {models.map(m => {
-                    const active = victimModelId === m.id;
-                    return (
-                      <button key={m.id} onClick={() => setVictimModelId(m.id)} style={{ textAlign: 'left', padding: '7px 8px', borderRadius: 3, cursor: 'pointer', background: active ? C.amberBg : C.bg, border: `1px solid ${active ? C.amber : C.border}` }}>
-                        <div style={{ fontSize: 12, color: active ? C.text1 : C.text2, fontWeight: active ? 800 : 600 }}>{m.name}</div>
-                        <div style={{ fontSize: 10, color: C.text3 }}>VRAM {m.vram} · {m.size}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 3 · Target prompt */}
-      <div style={{ marginBottom: 30 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {sectionLabel('05', 'Target system prompt', Boolean(victimPrompt.trim()))}
+      {/* Target system prompt */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          {label('Target system prompt')}
           <select value={presetId} onChange={e => { const p = PRESETS.find(x => x.id === e.target.value); if (p) { setPresetId(p.id); setVictimPrompt(p.prompt); } }}
-            style={{ ...inputStyle(C), width: 'auto', padding: '4px 8px', fontSize: 12, marginBottom: 12 }}>
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text2, fontSize: 12, padding: '4px 8px', borderRadius: 3, fontFamily: C.mono, cursor: 'pointer', marginBottom: 10 }}>
             {PRESETS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
         <textarea value={victimPrompt} onChange={e => setVictimPrompt(e.target.value)} rows={4}
-          placeholder="The system prompt the target model is running with…"
+          placeholder="Paste the system prompt the target model runs with…"
           style={{ ...inputStyle(C), resize: 'vertical', lineHeight: 1.6 }} />
-        <div style={{ fontSize: 11, color: C.text3, marginTop: 6 }}>SHA-256 {promptHash ? promptHash.slice(0, 20) : 'calculating'}...</div>
+        {promptHash && <div style={{ fontSize: 11, color: C.text3, marginTop: 5 }}>SHA-256 {promptHash.slice(0, 20)}…</div>}
       </div>
 
-      <div style={{ marginBottom: 30 }}>
-        {sectionLabel('06', 'Control mapping', effectiveControlIds.length > 0)}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 4, padding: '10px 12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: C.text1, fontWeight: 800 }}>{effectiveControlIds.join(', ') || 'No control mapped'}</span>
-            <span style={{ fontSize: 11, color: C.text3 }}>{selectedControlIds.length ? 'manual override' : 'auto-mapped from technique'} ·</span>
-            <button onClick={() => setControlOverrideOpen(p => !p)} style={{ background: 'transparent', border: 'none', color: C.amber, cursor: 'pointer', fontSize: 11, fontWeight: 900, letterSpacing: 1 }}>
-              CHANGE
-            </button>
-            {selectedControlIds.length > 0 && (
-              <button onClick={() => setSelectedControlIds([])} style={{ background: 'transparent', border: 'none', color: C.text3, cursor: 'pointer', fontSize: 11, fontWeight: 900, letterSpacing: 1 }}>
-                USE AUTO
-              </button>
-            )}
-          </div>
-          {controlOverrideOpen && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 6, marginTop: 10 }}>
-              {controlOptions.map(control => {
-                const active = selectedControlIds.includes(control.id);
-                return (
-                  <button key={control.id} onClick={() => toggleControl(control.id)} style={{ textAlign: 'left', background: active ? C.amberBg : C.bg, border: `1px solid ${active ? C.amber : C.border}`, borderLeft: `3px solid ${active ? C.amber : C.border}`, borderRadius: 3, padding: '8px 9px', cursor: 'pointer' }}>
-                    <div style={{ fontSize: 11, color: active ? C.amber : C.text3, fontWeight: 800 }}>{control.id}</div>
-                    <div style={{ fontSize: 12, color: C.text1, fontWeight: 700, marginTop: 2 }}>{control.name}</div>
-                    <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.35, marginTop: 4 }}>{control.objective}</div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 4 · Technique cluster */}
-      <div style={{ marginBottom: 30 }}>
-        {sectionLabel('07', 'Investigation focus', Boolean(clusterId))}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+      {/* Technique cluster */}
+      <div style={{ marginBottom: 28 }}>
+        {label('What to probe')}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8 }}>
           {clusters.map(cl => {
             const active = clusterId === cl.id;
             const color = C[cl.colorKey] || C.amber;
             return (
               <button key={cl.id} className="es-pick" onClick={() => setClusterId(cl.id)} style={{
-                textAlign: 'left', padding: '14px 15px', borderRadius: 4, cursor: 'pointer',
+                textAlign: 'left', padding: '13px 14px', borderRadius: 4, cursor: 'pointer',
                 background: active ? `${color}14` : C.surface,
                 border: `1px solid ${active ? color : C.border}`,
                 borderLeft: `3px solid ${active ? color : 'transparent'}`,
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                   <span style={{ fontSize: 10, color, letterSpacing: 1, fontWeight: 700 }}>{cl.code}</span>
                   <span style={{ fontSize: 10, color: C.text3 }}>{cl.payloads.length} probes</span>
                 </div>
-                <div style={{ fontSize: 14, color: C.text1, fontWeight: 700, marginBottom: 4 }}>{cl.name}</div>
-                <div style={{ fontSize: 11.5, color: C.text2, lineHeight: 1.5 }}>{cl.description}</div>
+                <div style={{ fontSize: 14, color: C.text1, fontWeight: 700, marginBottom: 3 }}>{cl.name}</div>
+                <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.45 }}>{cl.description}</div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* 5 · Judge */}
-      <div style={{ marginBottom: 30 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
-          <span style={{ fontSize: 12, color: C.teal, fontWeight: 800, letterSpacing: 1 }}>{judgeMode ? '✓' : '08'}</span>
-          <span style={{ fontSize: 13, color: judgeMode ? C.teal : C.text1, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>Judge review</span>
-          <span style={{ fontSize: 11, color: C.teal, letterSpacing: 1 }}>— recommended for higher accuracy</span>
-        </div>
-        <div style={{ background: judgeMode ? 'rgba(0,207,196,.07)' : C.surface, border: `1px solid ${judgeMode ? C.teal : C.border}`, borderLeft: `3px solid ${C.teal}`, borderRadius: 4, padding: '12px 14px' }}>
-          <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, marginBottom: 10 }}>
-            Run a second local model to evaluate each response as evidence. Increases accuracy at the cost of extra VRAM and time.
+      {/* Model + Judge row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 12, marginBottom: 28, alignItems: 'start' }} className="model-judge-row">
+        <div>
+          {label('Model')}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {victimModels.map(m => {
+              const active = victimModelId === m.id;
+              return (
+                <button key={m.id} onClick={() => setVictimModelId(m.id)} style={{
+                  padding: '6px 11px', borderRadius: 3, cursor: 'pointer', fontFamily: C.mono,
+                  background: active ? C.amberBg : C.surface,
+                  border: `1px solid ${active ? C.amber : C.border}`,
+                  color: active ? C.amber : C.text2, fontSize: 12, fontWeight: active ? 800 : 500,
+                }}>
+                  {m.name} <span style={{ fontSize: 10, color: active ? C.amber : C.text3, opacity: .8 }}>{m.size}</span>
+                </button>
+              );
+            })}
           </div>
-          <button onClick={() => setJudgeMode(p => !p)} style={{ ...btn(C, judgeMode ? 'primary' : 'ghost'), background: judgeMode ? C.tealBg : 'transparent', border: `1px solid ${judgeMode ? C.teal : C.borderHi}`, color: judgeMode ? C.teal : C.text2, marginBottom: judgeMode ? 10 : 0 }}>
-            JUDGE REVIEW {judgeMode ? 'ON' : 'OFF'}
+          {hardwareProfile.status === 'ready' && hardwareVictim && (
+            <div style={{ marginTop: 8, fontSize: 11, color: C.text3 }}>
+              Detected ~{hardwareProfile.estimatedVramGb?.toFixed(1)} GB VRAM ·{' '}
+              <button onClick={applyHardwareRecommendation} style={{ background: 'none', border: 'none', color: C.amber, cursor: 'pointer', fontSize: 11, fontWeight: 800, fontFamily: C.mono }}>
+                use recommended ({hardwareVictim.name})
+              </button>
+            </div>
+          )}
+          <div style={{ marginTop: 6, fontSize: 11, color: C.text3, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <AlertTriangle size={11} color={C.amberDim} /> First load downloads {model?.size || 'model'} — runs offline after.
+          </div>
+        </div>
+
+        <div style={{ minWidth: 160 }}>
+          {label('Judge review')}
+          <button onClick={() => setJudgeMode(p => !p)} style={{
+            width: '100%', padding: '9px 14px', borderRadius: 3, cursor: 'pointer', fontFamily: C.mono,
+            fontSize: 13, fontWeight: 800, letterSpacing: 1,
+            background: judgeMode ? 'rgba(0,207,196,.10)' : C.surface,
+            border: `1px solid ${judgeMode ? C.teal : C.border}`,
+            borderLeft: `3px solid ${C.teal}`,
+            color: judgeMode ? C.teal : C.text2,
+          }}>
+            {judgeMode ? '● ON' : '○ OFF'}
           </button>
           {judgeMode && (
-            <select value={judgeModelId} onChange={e => setJudgeModelId(e.target.value)} style={{ ...inputStyle(C), padding: '8px 10px', fontSize: 12 }}>
+            <select value={judgeModelId} onChange={e => setJudgeModelId(e.target.value)}
+              style={{ marginTop: 6, width: '100%', background: C.surface, border: `1px solid ${C.border}`, color: C.text1, fontSize: 12, padding: '6px 8px', borderRadius: 3, fontFamily: C.mono }}>
               {judgeModels.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           )}
+          <div style={{ marginTop: 6, fontSize: 11, color: C.text3, lineHeight: 1.4 }}>Second model validates each result.</div>
         </div>
       </div>
 
       {/* CTA */}
       <button onClick={onOpen} disabled={!ready || modelStatus === 'loading'} style={{
-        width: '100%', padding: '15px', borderRadius: 4, border: 'none', cursor: ready ? 'pointer' : 'not-allowed',
+        width: '100%', padding: '16px', borderRadius: 4, border: 'none',
+        cursor: ready ? 'pointer' : 'not-allowed',
         background: ready ? C.amber : C.surface, color: ready ? C.ink : C.text3,
-        fontSize: 13, fontWeight: 900, letterSpacing: 2, fontFamily: C.mono,
-        boxShadow: ready ? '0 0 28px rgba(200,120,68,.22)' : 'none',
+        fontSize: 14, fontWeight: 900, letterSpacing: 2, fontFamily: C.mono,
+        boxShadow: ready ? '0 0 32px rgba(200,120,68,.25)' : 'none',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        transition: 'all .2s',
       }}>
-        OPEN CASE & BEGIN <ChevronRight size={15} />
+        {modelStatus === 'loading' ? 'LOADING MODEL…' : 'BEGIN ASSESSMENT'} <ChevronRight size={16} />
       </button>
       {!ready && (
-        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: C.text3 }}>
-          {!analyst.trim() ? 'Add your analyst ID to continue.' : !victimPrompt.trim() ? 'Set a target prompt to continue.' : 'Pick an investigation focus to continue.'}
+        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 12, color: C.text3 }}>
+          {!victimPrompt.trim() ? 'Paste a target system prompt to continue.' : 'Pick a technique to probe.'}
         </div>
       )}
 
