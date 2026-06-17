@@ -203,16 +203,16 @@ function summarizeEvaluation(heuristic, judge) {
 const STAGE = { HOME: 'home', CASE: 'case', LOADING: 'loading', SELECT: 'select', PROBE: 'probe', TRIAGE: 'triage', REPORT: 'report' };
 
 function CompatGate({ C }) {
+  const isMobile = typeof navigator !== 'undefined' && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
   const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator;
   const hasIsolation = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
   const issues = [
+    isMobile && 'Mobile devices do not have sufficient GPU memory for in-browser models',
     !hasWebGPU && 'WebGPU is not available in this browser',
     !hasIsolation && 'Cross-origin isolation is not active (SharedArrayBuffer unavailable)',
   ].filter(Boolean);
 
   if (issues.length === 0) return null;
-
-  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
   return (
     <div style={{
@@ -229,7 +229,7 @@ function CompatGate({ C }) {
           </div>
           <div style={{ fontSize: 14, color: C.text1, lineHeight: 1.6 }}>
             {isMobile
-              ? 'ELICIT runs large language models directly in the browser using WebGPU. Mobile browsers do not yet have the GPU memory or WebGPU support required.'
+              ? 'ELICIT runs large language models directly in your browser using WebGPU. Mobile devices do not yet have the GPU memory required to load models locally.'
               : 'This browser is missing required capabilities to run in-browser models.'}
           </div>
         </div>
