@@ -126,16 +126,11 @@ export default function DossierHome({ C, findings, clusters, activeCase, onEnter
         </section>
       )}
 
-      {/* Empty state CTA */}
+      {/* Empty state hint */}
       {findings.length === 0 && (
-        <section style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 5, padding: '28px 24px', textAlign: 'center' }}>
-          <div style={{ fontSize: 14, color: C.text3, marginBottom: 16, lineHeight: 1.6 }}>
-            No findings yet. Run your first assessment to start building an evidence record.
-          </div>
-          <button onClick={onEnter} style={primaryBtn(C)}>
-            BEGIN ASSESSMENT <ChevronRight size={14} />
-          </button>
-        </section>
+        <div style={{ fontSize: 13, color: C.text3, lineHeight: 1.6 }}>
+          No findings yet — hit Begin Assessment above to start building an evidence record.
+        </div>
       )}
     </main>
   );
