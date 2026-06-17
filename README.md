@@ -84,8 +84,8 @@ For CDN, edge, or critical digital infrastructure SaaS providers, the default pr
 ## Local Setup
 
 ```bash
-git clone https://github.com/humintloop/Elicit.git
-cd Elicit
+git clone https://github.com/humintloop/ELICIT.git
+cd ELICIT
 npm install
 npm run dev
 ```
