@@ -1138,12 +1138,16 @@ function CaseSetup({
 
       {/* 5 · Judge */}
       <div style={{ marginBottom: 30 }}>
-        {sectionLabel('08', 'Judge review', judgeMode)}
-        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 4, padding: '12px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: judgeMode ? C.teal : C.teal, fontWeight: 800, letterSpacing: 1 }}>{judgeMode ? '✓' : '08'}</span>
+          <span style={{ fontSize: 11, color: judgeMode ? C.teal : C.text1, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>Judge review</span>
+          <span style={{ fontSize: 10, color: C.teal, letterSpacing: 1 }}>— recommended for higher accuracy</span>
+        </div>
+        <div style={{ background: judgeMode ? 'rgba(0,207,196,.07)' : C.surface, border: `1px solid ${judgeMode ? C.teal : C.border}`, borderLeft: `3px solid ${C.teal}`, borderRadius: 4, padding: '12px 14px' }}>
           <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, marginBottom: 10 }}>
             Run a second local model to evaluate each response as evidence. Increases accuracy at the cost of extra VRAM and time.
           </div>
-          <button onClick={() => setJudgeMode(p => !p)} style={{ ...btn(C, judgeMode ? 'primary' : 'ghost'), marginBottom: judgeMode ? 10 : 0 }}>
+          <button onClick={() => setJudgeMode(p => !p)} style={{ ...btn(C, judgeMode ? 'primary' : 'ghost'), background: judgeMode ? C.tealBg : 'transparent', border: `1px solid ${judgeMode ? C.teal : C.borderHi}`, color: judgeMode ? C.teal : C.text2, marginBottom: judgeMode ? 10 : 0 }}>
             JUDGE REVIEW {judgeMode ? 'ON' : 'OFF'}
           </button>
           {judgeMode && (
