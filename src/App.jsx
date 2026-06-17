@@ -645,26 +645,26 @@ export default function App() {
         <img src={`${BRAND_BASE}brand/elicit-icon.png?v=${BRAND_VERSION}`} alt="" style={{ width: 38, height: 38, borderRadius: 9, boxShadow: `0 0 0 1px ${C.amber}55` }} />
         <div style={{ minWidth: 0 }}>
           <div style={{ color: C.amber, fontSize: 24, fontWeight: 900, letterSpacing: 3, lineHeight: 1 }}>ELICIT</div>
-          <div style={{ color: C.warmDim, fontSize: 9, fontWeight: 800, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 3 }}>Adversarial Assurance Lab</div>
+          <div style={{ color: C.warmDim, fontSize: 11, fontWeight: 800, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 3 }}>Adversarial Assurance Lab</div>
         </div>
       </div>
 
       {stage !== STAGE.HOME && stage !== STAGE.CASE && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: C.text3 }}>
+        <div className="case-id-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.text3 }}>
           <span style={{ color: C.border }}>│</span>
           <span style={{ color: C.amber, letterSpacing: 1 }}>{caseId}</span>
           {loadedModel && <span>· {loadedModel.name}</span>}
         </div>
       )}
 
-      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="header-nav-buttons" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
         {stage !== STAGE.HOME && (
           <button onClick={goHome} style={btn(C, 'ghost')}>
             HOME
           </button>
         )}
         {findings.length > 0 && stage !== STAGE.REPORT && (
-          <button onClick={() => setStage(STAGE.REPORT)} style={btn(C, 'ghost')}>
+          <button className="hide-mobile" onClick={() => setStage(STAGE.REPORT)} style={btn(C, 'ghost')}>
             <FileText size={12} /> VIEW REPORT ({findings.length} FINDING{findings.length === 1 ? '' : 'S'})
           </button>
         )}
@@ -692,7 +692,7 @@ export default function App() {
         <button key={label} onClick={onClick} disabled={!enabled} style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, background: active ? C.amberBg : 'transparent', border: `1px solid ${active ? C.amber : 'transparent'}`, borderRadius: 3, padding: '4px 7px', cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : .45 }}>
           {i > 0 && <ChevronRight size={11} color={C.border} style={{ margin: '0 9px' }} />}
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: label === 'Triage' ? triageDotColor : active ? C.amber : C.borderHi, boxShadow: label === 'Triage' && triageAwaiting ? `0 0 10px ${C.amber}` : active ? `0 0 8px ${C.amber}99` : 'none', animation: label === 'Triage' && triageAwaiting ? 'pulse 1.1s ease-in-out infinite' : 'none' }} />
-          <span style={{ fontSize: 11, letterSpacing: 1, fontWeight: active ? 800 : 500, color: active ? C.amber : C.text3, textTransform: 'uppercase' }}>{label}</span>
+          <span style={{ fontSize: 12, letterSpacing: 1, fontWeight: active ? 800 : 500, color: active ? C.amber : C.text3, textTransform: 'uppercase' }}>{label}</span>
         </button>
       ))}
     </div>
@@ -897,7 +897,7 @@ export default function App() {
 
 // ═══ Button helper ════════════════════════════════════════════════════════════
 function btn(C, variant) {
-  const base = { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', fontSize: 12, fontWeight: 800, letterSpacing: 1, cursor: 'pointer', borderRadius: 3, fontFamily: C.mono, transition: 'all .15s' };
+  const base = { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 14px', fontSize: 13, fontWeight: 800, letterSpacing: 1, cursor: 'pointer', borderRadius: 3, fontFamily: C.mono, transition: 'all .15s' };
   if (variant === 'primary') return { ...base, background: C.amber, color: C.ink, border: `1px solid ${C.amber}`, boxShadow: '0 0 20px rgba(200,120,68,.2)' };
   if (variant === 'ghost') return { ...base, background: 'transparent', color: C.text2, border: `1px solid ${C.border}` };
   return base;
@@ -923,10 +923,17 @@ function GlobalStyle({ C }) {
       .es-card { animation: fadeUp .35s ease; }
       .es-pick { transition: border-color .15s, background .15s; }
       .es-pick:hover { border-color: ${C.amber}88 !important; }
+      button, a, select { touch-action: manipulation; }
       @media (max-width: 760px) {
         .home-hero-grid { grid-template-columns: minmax(0, 1fr) !important; }
         .workstation-layout { flex-direction: column; overflow-y: auto !important; }
         .attack-nav { width: 100% !important; max-width: none !important; max-height: 280px; border-right: none !important; border-bottom: 1px solid ${C.border}; }
+        .case-id-bar { display: none !important; }
+        .header-nav-buttons { gap: 6px !important; }
+        .header-nav-buttons button { padding: 7px 10px !important; font-size: 11px !important; }
+      }
+      @media (max-width: 480px) {
+        .header-nav-buttons .hide-mobile { display: none !important; }
       }
     `}</style>
   );
@@ -961,8 +968,8 @@ function CaseSetup({
 
   const sectionLabel = (n, t, complete) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
-      <span style={{ fontSize: 11, color: complete ? C.teal : C.amber, fontWeight: 800, letterSpacing: 1 }}>{complete ? '✓' : n}</span>
-      <span style={{ fontSize: 11, color: complete ? C.text1 : C.text2, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>{t}</span>
+      <span style={{ fontSize: 12, color: complete ? C.teal : C.amber, fontWeight: 800, letterSpacing: 1 }}>{complete ? '✓' : n}</span>
+      <span style={{ fontSize: 13, color: complete ? C.text1 : C.text2, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>{t}</span>
     </div>
   );
 
@@ -1139,9 +1146,9 @@ function CaseSetup({
       {/* 5 · Judge */}
       <div style={{ marginBottom: 30 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginBottom: 12 }}>
-          <span style={{ fontSize: 11, color: judgeMode ? C.teal : C.teal, fontWeight: 800, letterSpacing: 1 }}>{judgeMode ? '✓' : '08'}</span>
-          <span style={{ fontSize: 11, color: judgeMode ? C.teal : C.text1, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>Judge review</span>
-          <span style={{ fontSize: 10, color: C.teal, letterSpacing: 1 }}>— recommended for higher accuracy</span>
+          <span style={{ fontSize: 12, color: C.teal, fontWeight: 800, letterSpacing: 1 }}>{judgeMode ? '✓' : '08'}</span>
+          <span style={{ fontSize: 13, color: judgeMode ? C.teal : C.text1, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase' }}>Judge review</span>
+          <span style={{ fontSize: 11, color: C.teal, letterSpacing: 1 }}>— recommended for higher accuracy</span>
         </div>
         <div style={{ background: judgeMode ? 'rgba(0,207,196,.07)' : C.surface, border: `1px solid ${judgeMode ? C.teal : C.border}`, borderLeft: `3px solid ${C.teal}`, borderRadius: 4, padding: '12px 14px' }}>
           <div style={{ fontSize: 12, color: C.text2, lineHeight: 1.5, marginBottom: 10 }}>
