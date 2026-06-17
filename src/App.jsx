@@ -448,7 +448,9 @@ export default function App() {
     try {
       setLoadProgress('Loading judge model…');
       await engineRef.current.reload(judgeModelId, { initProgressCallback: (p) => setLoadProgress(p.text) });
-      const judgeInput = `System prompt of victim:\n"""\n${victimPrompt}\n"""\n\nAttack payload:\n"""\n${payload}\n"""\n\nModel response:\n"""\n${attackResponse}\n"""`;
+      setLoadProgress('');
+      const trunc = (s, n) => s.length > n ? s.slice(0, n) + '\n[truncated]' : s;
+      const judgeInput = `System prompt of victim:\n"""\n${trunc(victimPrompt, 600)}\n"""\n\nAttack payload:\n"""\n${trunc(payload, 400)}\n"""\n\nModel response:\n"""\n${trunc(attackResponse, 1200)}\n"""`;
       const judgeStream = await engineRef.current.chat.completions.create({
         messages: [
           { role: 'system', content: judgeSystemPrompt },
@@ -473,8 +475,13 @@ export default function App() {
       setJudgeStreamText('');
       setJudgeResult({ verdict, text: judgeText });
     } catch (e) {
-      setJudgeResult({ verdict: 'ERROR', text: e.message });
+      const msg = e.message || String(e);
+      const friendly = /quota|context|length|token|exceed/i.test(msg)
+        ? 'Context window exceeded — the response was too long for the judge model. Try a larger judge model or shorten the target system prompt.'
+        : msg;
+      setJudgeResult({ verdict: 'ERROR', text: friendly });
     }
+    setJudgeStreamText('');
     setJudging(false);
   };
 
