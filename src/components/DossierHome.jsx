@@ -59,7 +59,7 @@ export default function DossierHome({ C, findings, clusters, activeCase, onEnter
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
             <button onClick={onEnter} style={primaryButton(C)}>
-              OPEN CASE FILE <ChevronRight size={14} />
+              BEGIN ASSESSMENT <ChevronRight size={14} />
             </button>
             <button onClick={onReport} disabled={!findings.length} style={{ ...ghostButton(C), opacity: findings.length ? 1 : .45, cursor: findings.length ? 'pointer' : 'not-allowed' }}>
               <FileText size={13} /> OPEN REPORT
