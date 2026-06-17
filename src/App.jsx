@@ -644,7 +644,7 @@ export default function App() {
         <img src={`${BRAND_BASE}brand/elicit-icon.png?v=${BRAND_VERSION}`} alt="" style={{ width: 38, height: 38, borderRadius: 9, boxShadow: `0 0 0 1px ${C.amber}55` }} />
         <div style={{ minWidth: 0 }}>
           <div style={{ color: C.amber, fontSize: 24, fontWeight: 900, letterSpacing: 3, lineHeight: 1 }}>ELICIT</div>
-          <div style={{ color: C.warmDim, fontSize: 9, fontWeight: 800, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 3 }}>Intelligence Investigation Lab</div>
+          <div style={{ color: C.warmDim, fontSize: 9, fontWeight: 800, letterSpacing: 1.4, textTransform: 'uppercase', marginTop: 3 }}>Adversarial Assurance Lab</div>
         </div>
       </div>
 
