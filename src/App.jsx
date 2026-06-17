@@ -796,7 +796,7 @@ export default function App() {
           // Pause so the user can read the verdict before advancing
           setBatchJudgeStatus({
             index: i, total: newFindings.length, name: f.payloadName,
-            judgeText, judgeVerdict: verdict, heuristicVerdict: normalizeVerdict(f.heuristicVerdict),
+            judgeText, judgeVerdict: verdict, heuristicVerdict: normalizeVerdict(f.heuristicVerdict), heuristicReason: f.evalReason || '',
             isLoadingModel: false, paused: true,
             probeResponse: f.responseFull || f.response || '', probePayload: f.payload || '',
           });
@@ -1584,7 +1584,7 @@ function ProbeSelectStage({ C, cluster, selectedIds, onToggle, onSelectAll, onCl
 }
 
 function BatchJudgeRunner({ C, status, onStop, onContinue }) {
-  const { index, total, name, judgeText, judgeVerdict, heuristicVerdict, isLoadingModel, paused, probeResponse, probePayload } = status;
+  const { index, total, name, judgeText, judgeVerdict, heuristicVerdict, heuristicReason, isLoadingModel, paused, probeResponse, probePayload } = status;
   const pct = Math.round(((index + 1) / total) * 100);
   const isLoading = !!isLoadingModel;
   const isLast = index >= total - 1;
@@ -1645,6 +1645,11 @@ function BatchJudgeRunner({ C, status, onStop, onContinue }) {
                   {getVerdictLabel(heuristicVerdict)}
                 </span>
               </div>
+              {heuristicReason && (
+                <div style={{ fontFamily: C.mono, fontSize: 12, color: C.text1, lineHeight: 1.6, whiteSpace: 'pre-wrap', maxHeight: 120, overflowY: 'auto' }}>
+                  {heuristicReason}
+                </div>
+              )}
             </div>
           )}
           <div style={{ flex: '1 1 220px', background: `${jc}0D`, border: `1px solid ${jc}55`, borderLeft: `3px solid ${jc}`, borderRadius: 5, padding: '14px 16px', boxShadow: `0 0 20px ${jc}33` }}>
