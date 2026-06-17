@@ -897,7 +897,7 @@ function btn(C, variant) {
 function GlobalStyle({ C }) {
   return (
     <style>{`
-      html { zoom: 1.12; }
+      html { font-size: 15px; }
       *, *::before, *::after { box-sizing: border-box; }
       ::-webkit-scrollbar { width: 6px; height: 6px; }
       ::-webkit-scrollbar-thumb { background: ${C.borderHi}; border-radius: 999px; }
@@ -1049,29 +1049,34 @@ function CaseSetup({
         </div>
       </div>
 
-      {/* CTA */}
-      <button onClick={onOpen} disabled={!ready || modelStatus === 'loading'} style={{
-        width: '100%', padding: '16px', borderRadius: 4, border: 'none',
-        cursor: ready ? 'pointer' : 'not-allowed',
-        background: ready ? C.amber : C.surface, color: ready ? C.ink : C.text3,
-        fontSize: 14, fontWeight: 900, letterSpacing: 2, fontFamily: C.mono,
-        boxShadow: ready ? '0 0 32px rgba(200,120,68,.25)' : 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        transition: 'all .2s',
-      }}>
-        {modelStatus === 'loading' ? 'LOADING MODEL…' : 'BEGIN ASSESSMENT'} <ChevronRight size={16} />
-      </button>
-      {!ready && (
-        <div style={{ textAlign: 'center', marginTop: 10, fontSize: 12, color: C.text3 }}>
-          {!victimPrompt.trim() ? 'Paste a target system prompt to continue.' : 'Pick a technique to probe.'}
-        </div>
-      )}
-
       {findingsCount > 0 && (
-        <button onClick={onReport} style={{ ...btn(C, 'ghost'), margin: '20px auto 0' }}>
+        <button onClick={onReport} style={{ ...btn(C, 'ghost'), margin: '8px auto 32px' }}>
           <FileText size={12} /> VIEW {findingsCount} EXISTING FINDING{findingsCount !== 1 ? 'S' : ''}
         </button>
       )}
+
+      {/* Sticky CTA */}
+      <div style={{
+        position: 'sticky', bottom: 0, marginLeft: -24, marginRight: -24,
+        padding: '12px 24px 16px', background: `linear-gradient(transparent, ${C.bg} 28%)`,
+      }}>
+        <button onClick={onOpen} disabled={!ready || modelStatus === 'loading'} style={{
+          width: '100%', padding: '16px', borderRadius: 4, border: 'none',
+          cursor: ready ? 'pointer' : 'not-allowed',
+          background: ready ? C.amber : C.surface, color: ready ? C.ink : C.text3,
+          fontSize: 14, fontWeight: 900, letterSpacing: 2, fontFamily: C.mono,
+          boxShadow: ready ? '0 0 32px rgba(200,120,68,.25)' : 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          transition: 'all .2s',
+        }}>
+          {modelStatus === 'loading' ? 'LOADING MODEL…' : 'BEGIN ASSESSMENT'} <ChevronRight size={16} />
+        </button>
+        {!ready && (
+          <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: C.text3 }}>
+            {!victimPrompt.trim() ? 'Paste a target system prompt to continue.' : 'Pick a technique to probe.'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
