@@ -29,9 +29,9 @@ export default function Header({
     <header className="app-header">
       <div className="brand-lockup">
         <img src={`${brandBase}brand/elicit-icon.png?v=${brandVersion}`} alt="ELICIT icon" className="brand-icon" />
-        <div className="brand-word" aria-label="ELICIT LLM Red Team Lab">
+        <div className="brand-word" aria-label="ELICIT Adversarial Assurance Lab">
           <div className="brand-title">ELICIT</div>
-          <div className="brand-subtitle">LLM RED TEAM LAB</div>
+          <div className="brand-subtitle">ADVERSARIAL ASSURANCE LAB</div>
         </div>
         <span className="brand-context">Local-first adversarial assurance lab</span>
       </div>
