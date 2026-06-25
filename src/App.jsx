@@ -1644,9 +1644,10 @@ function BatchFindingsList({ C, findings, total, onView, judging, currentIndex }
         const color = getVerdictColor(verdict, C);
         const isActive = judging && (total - findings.length + i === currentIndex);
         const jc = judged ? getVerdictColor(normalizeVerdict(f.judgeVerdict), C) : null;
+        const reasonText = judged ? f.judgeReason : f.evalReason;
         return (
           <button key={f.id} onClick={() => onView(f)} style={{
-            display: 'flex', flexDirection: 'column', gap: judged ? 8 : 0, textAlign: 'left',
+            display: 'flex', flexDirection: 'column', gap: reasonText ? 8 : 0, textAlign: 'left',
             padding: '9px 12px', borderRadius: 4, cursor: 'pointer', width: '100%',
             background: isActive ? `${C.blue}12` : C.panel,
             border: `1px solid ${isActive ? C.blue + '55' : color + '33'}`,
@@ -1667,11 +1668,15 @@ function BatchFindingsList({ C, findings, total, onView, judging, currentIndex }
                 {getVerdictLabel(verdict)}
               </span>
             </div>
-            {judged && f.judgeReason && (
-              <div style={{ fontSize: 11, color: C.text2, fontFamily: C.mono, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                maxHeight: 72, overflowY: 'hidden', maskImage: 'linear-gradient(to bottom, black 60%, transparent 100%)',
-                borderTop: `1px solid ${jc}22`, paddingTop: 6, marginLeft: 20 }}>
-                {f.judgeReason}
+            {reasonText && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginLeft: 20 }}>
+                <div style={{ fontSize: 9, color: judged ? jc : C.text3, letterSpacing: 1, fontWeight: 800, textTransform: 'uppercase' }}>
+                  {judged ? 'LLM JUDGE' : 'HEURISTIC'}
+                </div>
+                <div style={{ fontSize: 11, color: C.text2, fontFamily: C.mono, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  maxHeight: 160, overflowY: 'auto', borderTop: `1px solid ${(judged ? jc : C.text3)}22`, paddingTop: 6 }}>
+                  {reasonText}
+                </div>
               </div>
             )}
           </button>
