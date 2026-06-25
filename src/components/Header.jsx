@@ -132,7 +132,10 @@ export default function Header({
       </div>
 
       <div className="tab-nav">
-        {[['lab', 'LAB', <FlaskConical size={11} />], ['findings', `FINDINGS (${findingsCount})`, <FileText size={11} />]].map(([tab, label, icon]) => (
+        {[
+          { tab: 'lab', label: 'LAB', Icon: FlaskConical },
+          { tab: 'findings', label: `FINDINGS (${findingsCount})`, Icon: FileText },
+        ].map(({ tab, label, Icon }) => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '5px 12px', fontSize: 14, fontWeight: 700, letterSpacing: 1,
@@ -141,7 +144,7 @@ export default function Header({
             color: activeTab === tab ? C.amber : C.text2, cursor: 'pointer',
             borderRadius: 2,
           }}>
-            {icon}{label}
+            <Icon size={11} />{label}
           </button>
         ))}
       </div>

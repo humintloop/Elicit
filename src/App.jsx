@@ -10,7 +10,7 @@ import DossierHome from './components/DossierHome';
 import AttackNavigator from './components/AttackNavigator';
 import ConversationTranscript from './components/ConversationTranscript';
 import FrameworkMappingExplainer from './components/FrameworkMappingExplainer';
-import { PAYLOADS, TECHNIQUES, PRESETS, EVALUATION_CASE_SCHEMA_VERSION, evaluateResponse } from './payloads';
+import { TECHNIQUES, PRESETS, EVALUATION_CASE_SCHEMA_VERSION, evaluateResponse } from './payloads';
 import { CLUSTERS } from './data/clusters';
 import { ASSURANCE_PROFILE, CONTROL_SET, FRAMEWORK_MAPPING_VERSION, buildCaseMapping } from './data/frameworkMappings';
 import { getMitigationMapping } from './data/mitigationMappings';
@@ -304,7 +304,6 @@ export default function App() {
   const [judgeStreamText, setJudgeStreamText] = useState('');
   const [judgeAcknowledged, setJudgeAcknowledged] = useState(false);
   const abortRef = useRef(false);
-  const batchJudgePauseResolverRef = useRef(null); // kept for legacy stop path
   const [loggedFlash, setLoggedFlash] = useState(null);
   const [controlGapStatement, setControlGapStatement] = useState('');
   const [effectivenessAssessment, setEffectivenessAssessment] = useState('');
@@ -322,7 +321,7 @@ export default function App() {
     try {
       localStorage.setItem('elicit-findings', JSON.stringify(findings));
       setStorageWarning(null);
-    } catch (e) {
+    } catch (_) {
       setStorageWarning('Could not save findings to local storage — it may be full. Export your findings now to avoid losing evidence.');
     }
   }, [findings]);
@@ -358,7 +357,6 @@ export default function App() {
   const clusterPayloads = cluster?.payloads || [];
   const probe = clusterPayloads[probeIndex] || null;
   const isLastProbe = probeIndex >= clusterPayloads.length - 1;
-  const selectedJudgeModel = JUDGE_MODELS.find(m => m.id === judgeModelId);
   const selectedVictimModel = VICTIM_MODELS.find(m => m.id === victimModelId);
   const loadedModel = VICTIM_MODELS.find(m => m.id === loadedModelId);
   const currentCaseFindings = findings.filter(f => f.caseFileId === caseId);
@@ -586,14 +584,6 @@ export default function App() {
     setJudgeAcknowledged(true);
   };
 
-  // ── Advance past a paused batch-judge finding ──
-  const continueBatchJudge = () => {
-    if (batchJudgePauseResolverRef.current) {
-      batchJudgePauseResolverRef.current();
-      batchJudgePauseResolverRef.current = null;
-    }
-  };
-
   // ── Log a finding with a disposition, then advance ──
   const logFinding = (disposition) => {
     if (!response || !evalResult || !probe) return;
@@ -755,7 +745,7 @@ export default function App() {
           full += chunk.choices[0]?.delta?.content || '';
           setBatchStatus(s => ({ ...s, response: full }));
         }
-      } catch (e) { full = ''; }
+      } catch (_) { full = ''; }
       if (full.trim()) {
         const evalR = evaluateResponse(full, victimPrompt, p.technique);
         const finding = buildFindingObject(p, cl, full, evalR);
@@ -1428,7 +1418,7 @@ function inputStyle(C) {
   };
 }
 
-function SessionContextBar({ C, stage, model, caseId, controlIds, probeIndex, total, findingsCount, lastSavedAt, probes, outcomes, activeProbeId, onSelect }) {
+function SessionContextBar({ C, model, caseId, probeIndex, total, findingsCount, lastSavedAt, probes, outcomes, activeProbeId, onSelect }) {
   const savedLabel = lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
   const colorFor = (payload) => {
     const outcome = outcomes[payload.id];
@@ -1504,7 +1494,7 @@ function LoadingStage({ C, cluster, modelName, modelSize, progress }) {
           </div>
         ))}
         <div style={{ fontSize: 11, color: C.text3, marginTop: 6, lineHeight: 1.5 }}>
-          Read this while the model loads. The first probe opens automatically when it's ready.
+          Read this while the model loads. The first probe opens automatically when it&apos;s ready.
         </div>
       </div>
     </div>
@@ -1528,7 +1518,7 @@ function ProbeSelectStage({ C, cluster, selectedIds, onToggle, onSelectAll, onCl
         <div style={{ fontSize: 11, color, letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 6, fontFamily: C.mono }}>{cluster?.code}</div>
         <h2 style={{ fontSize: 24, color: C.text1, fontWeight: 700, margin: 0 }}>{cluster?.name}</h2>
         <p style={{ fontSize: 14, color: C.text3, marginTop: 8, lineHeight: 1.6 }}>
-          Select the probes you want to run. They'll execute back-to-back and findings will be auto-saved.
+          Select the probes you want to run. They&apos;ll execute back-to-back and findings will be auto-saved.
           {judgeMode && ' Judge evaluation will run across all results at the end.'}
         </p>
       </div>
@@ -1730,7 +1720,7 @@ function BatchFindingDetail({ C, finding, onClose }) {
 }
 
 function BatchJudgeRunner({ C, status, findings, batchFindingIds, onViewFinding, onStop }) {
-  const { index, total, name, judgeText, isLoadingModel, probeResponse } = status;
+  const { index, total, name, judgeText, isLoadingModel } = status;
   const pct = Math.round(((index + 1) / total) * 100);
   const isLoading = !!isLoadingModel;
   const batchFindings = (batchFindingIds && findings)
@@ -1868,7 +1858,7 @@ function ProbeStage({ C, cluster, probe, index, total, victimPrompt, response, r
       </div>
 
       <div style={{ background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, padding: '13px 15px', fontSize: 12.5, color: C.text2, lineHeight: 1.65 }}>
-        <SectionTitle C={C}>What you're watching for</SectionTitle>
+        <SectionTitle C={C}>What you&apos;re watching for</SectionTitle>
         <div style={{ marginBottom: 10 }}>
           <span style={{ color: C.teal, fontWeight: 700 }}>Holds if: </span>
           {probe.expected_secure_behavior || 'The model keeps its instructions and refuses the manipulation.'}
@@ -1947,7 +1937,7 @@ function TriageStage({
   effectOptions,
   summarize,
 }) {
-  const color = C[cluster?.colorKey] || C.amber;
+  const [mappingOpen, setMappingOpen] = useState(false);
 
   if (loggedFlash) {
     const vc = getVerdictColor(loggedFlash.verdict, C);
@@ -2058,7 +2048,6 @@ function TriageStage({
   const vc = getVerdictColor(finalVerdict, C);
 
   const needsEffectiveness = ['SUCCESS', 'PARTIAL'].includes(finalVerdict) && !effectivenessAssessment;
-  const [mappingOpen, setMappingOpen] = useState(false);
 
   return (
     <div className="es-card" style={{ flex: 1, width: '100%', padding: '24px 24px 80px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>

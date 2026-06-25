@@ -254,7 +254,7 @@ export default function FindingCard({ C, finding: f, auditorView, onUpdate, onDe
   );
 }
 
-function StatusChip({ C, color, label, outline, dot }) {
+function StatusChip({ color, label, outline, dot }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color,
@@ -328,15 +328,6 @@ function ExpandableBlock({ C, label, children, mono, bright, defaultExpanded = f
           <ChevronDown size={11} /> SHOW FULL {label}
         </button>
       )}
-    </div>
-  );
-}
-
-function Block({ C, label, children, mono, bright }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, color: C.text3, letterSpacing: 1.2, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: mono ? 13 : 14, color: bright ? C.text1 : C.text2, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '9px 11px', lineHeight: 1.6, whiteSpace: 'pre-wrap', fontFamily: mono ? C.mono : C.sans }}>{children}</div>
     </div>
   );
 }
