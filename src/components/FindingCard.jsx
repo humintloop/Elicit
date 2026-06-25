@@ -192,12 +192,8 @@ export default function FindingCard({ C, finding: f, auditorView, onUpdate, onDe
                 )}
 
                 {/* Response then payload */}
-                <ExpandableBlock C={C} label="MODEL RESPONSE" mono bright defaultExpanded>{f.response}</ExpandableBlock>
+                <ExpandableBlock C={C} label="FULL MODEL RESPONSE" mono bright defaultExpanded>{f.responseFull || f.response}</ExpandableBlock>
                 <ExpandableBlock C={C} label="ATTACK PAYLOAD" mono>{f.payload}</ExpandableBlock>
-
-                {f.responseFull && f.responseFull !== f.response && (
-                  <ExpandableBlock C={C} label="FULL RESPONSE" mono bright>{f.responseFull}</ExpandableBlock>
-                )}
               </>
             )}
 
