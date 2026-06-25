@@ -279,7 +279,7 @@ export default function App() {
   const [judgeModelId, setJudgeModelId] = useState(savedCase.judgeModelId || JUDGE_MODELS[0].id);
   const [victimPrompt, setVictimPrompt] = useState(savedCase.victimPrompt || PRESETS[0].prompt);
   const [promptHash, setPromptHash] = useState('');
-  const [presetId, setPresetId] = useState(PRESETS[0].id);
+  const [presetId, setPresetId] = useState(savedCase.presetId || PRESETS[0].id);
   const [runPreset, setRunPreset] = useState(savedCase.runPreset || 'standard');
   const [clusterId, setClusterId] = useState(savedCase.clusterId || CLUSTERS[0]?.id || null);
   const [judgeMode, setJudgeMode] = useState(Boolean(savedCase.judgeMode));
