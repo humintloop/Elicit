@@ -1636,13 +1636,13 @@ function BatchFindingsList({ C, findings, total, onView, judging, currentIndex }
   return (
     <div style={{ margin: '0 28px 24px', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ fontSize: 11, color: judging ? C.blue : C.text3, letterSpacing: 1.4, fontWeight: 900, textTransform: 'uppercase', marginBottom: 4 }}>
-        {judging ? 'JUDGE RESULTS' : 'COMPLETED PROBES'} · {findings.length}{pendingCount > 0 ? ` / ${total}` : ''}
+        RESULTS · {findings.length}{pendingCount > 0 ? ` / ${total}` : ''}
       </div>
       {findings.map((f, i) => {
-        const verdict = normalizeVerdict(f.judgeVerdict || f.heuristicVerdict || f.verdict);
+        const judged = judging && !!f.judgeVerdict;
+        const verdict = normalizeVerdict(judged ? f.judgeVerdict : f.heuristicVerdict || f.verdict);
         const color = getVerdictColor(verdict, C);
         const isActive = judging && (total - findings.length + i === currentIndex);
-        const judged = judging && !!f.judgeVerdict;
         const jc = judged ? getVerdictColor(normalizeVerdict(f.judgeVerdict), C) : null;
         return (
           <button key={f.id} onClick={() => onView(f)} style={{
@@ -1660,6 +1660,9 @@ function BatchFindingsList({ C, findings, total, onView, judging, currentIndex }
                   {f.payloadName || f.caseId}
                 </div>
               </div>
+              {judging && !judged && (
+                <span style={{ fontSize: 10, color: C.text3, fontStyle: 'italic', flexShrink: 0, whiteSpace: 'nowrap' }}>heuristic · awaiting judge</span>
+              )}
               <span style={{ fontSize: 11, color, fontWeight: 800, background: `${color}18`, border: `1px solid ${color}44`, padding: '2px 7px', borderRadius: 2, flexShrink: 0, letterSpacing: .5 }}>
                 {getVerdictLabel(verdict)}
               </span>
@@ -1742,6 +1745,9 @@ function BatchJudgeRunner({ C, status, findings, batchFindingIds, onViewFinding,
   const batchFindings = (batchFindingIds && findings)
     ? findings.filter(f => batchFindingIds.has(f.id))
     : [];
+  const activeFinding = !isLoading ? batchFindings.find(f => f.payloadName === name) : null;
+  const hc = activeFinding ? getVerdictColor(normalizeVerdict(activeFinding.heuristicVerdict), C) : C.text3;
+  const jc = activeFinding?.judgeVerdict ? getVerdictColor(normalizeVerdict(activeFinding.judgeVerdict), C) : C.blue;
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -1781,22 +1787,39 @@ function BatchJudgeRunner({ C, status, findings, batchFindingIds, onViewFinding,
             </div>
           </div>
         )}
+      </div>
 
-        {judgeText && !isLoading && (
-          <div style={{ padding: '12px 14px', background: C.surface, border: `1px solid ${C.blue}44`, borderRadius: 4, maxHeight: 120, overflowY: 'auto' }}>
-            <div style={{ fontSize: 11, color: C.blue, letterSpacing: 1.2, marginBottom: 6 }}>JUDGE OUTPUT</div>
-            <div style={{ fontSize: 12, color: C.text1, fontFamily: C.mono, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {judgeText}
+      {/* Active finding — heuristic + judge + evidence, expanded inline, no click required */}
+      {activeFinding && (
+        <div style={{ margin: '0 28px 18px', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 220px', background: `${hc}0D`, border: `1px solid ${hc}44`, borderLeft: `3px solid ${hc}`, borderRadius: 4, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, color: C.text3, letterSpacing: 1.3, marginBottom: 4 }}>HEURISTIC</div>
+              <div style={{ fontSize: 12, color: hc, fontWeight: 800 }}>{getVerdictLabel(activeFinding.heuristicVerdict)}</div>
+              {activeFinding.evalReason && <div style={{ fontSize: 11, color: C.text2, marginTop: 5, lineHeight: 1.5, fontFamily: C.mono }}>{activeFinding.evalReason}</div>}
+            </div>
+            <div style={{ flex: '1 1 220px', background: `${jc}0D`, border: `1px solid ${jc}44`, borderLeft: `3px solid ${jc}`, borderRadius: 4, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, color: C.teal, letterSpacing: 1.3, marginBottom: 4 }}>LLM JUDGE</div>
+              <div style={{ fontSize: 12, color: jc, fontWeight: 800 }}>{activeFinding.judgeVerdict ? getVerdictLabel(activeFinding.judgeVerdict) : 'Evaluating…'}</div>
+              <div style={{ fontSize: 11, color: C.text2, marginTop: 5, lineHeight: 1.5, fontFamily: C.mono, maxHeight: 120, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {judgeText || 'Sending to judge…'}
+              </div>
             </div>
           </div>
-        )}
-        {!judgeText && !isLoading && (
-          <div style={{ padding: '10px 14px', background: C.panel, border: `1px solid ${C.border}`, borderRadius: 4, color: C.text3, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 999, background: C.blue, animation: 'pulse 1.2s ease-in-out infinite' }} />
-            Sending to judge…
+          <div>
+            <div style={{ fontSize: 10, color: C.amber, letterSpacing: 1.3, fontWeight: 800, marginBottom: 5 }}>ATTACK PAYLOAD</div>
+            <div style={{ background: C.panel, border: `1px solid ${C.amber}33`, borderRadius: 4, padding: '10px 12px', fontSize: 12, color: C.text2, fontFamily: C.mono, lineHeight: 1.65, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 110, overflowY: 'auto' }}>
+              {activeFinding.payloadFull || activeFinding.payload}
+            </div>
           </div>
-        )}
-      </div>
+          <div>
+            <div style={{ fontSize: 10, color: C.teal, letterSpacing: 1.3, fontWeight: 800, marginBottom: 5 }}>MODEL RESPONSE</div>
+            <div style={{ background: `${C.teal}0A`, border: `1px solid ${C.teal}33`, borderRadius: 4, padding: '10px 12px', fontSize: 13, color: C.text1, fontFamily: C.mono, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 160, overflowY: 'auto' }}>
+              {activeFinding.responseFull || activeFinding.response}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live findings list */}
       <BatchFindingsList C={C} findings={batchFindings} total={total} onView={onViewFinding} judging currentIndex={index} />
